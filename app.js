@@ -611,7 +611,7 @@ function openPilar(id) {
                                 <p class="item-text text-sm font-semibold ${isChecked ? 'line-through opacity-50' : ''}">${item.text}</p>
                             </div>
                         </label>
-                        <textarea placeholder="Notas..." class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl" oninput="saveNote('${item.code}', this.value)">${auditStatus.notes[item.code] || ''}</textarea>
+                        <textarea placeholder="Audit Notes..." class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl" oninput="saveNote('${item.code}', this.value)">${auditStatus.notes[item.code] || ''}</textarea>
                     </div>`;
                 }).join('')}
             </div>
@@ -705,3 +705,4 @@ function importAuditSession(event) {
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
     renderCards();
 })();
+
