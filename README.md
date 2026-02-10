@@ -5,8 +5,11 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Logic-Vanilla_JS-yellow?style=for-the-badge&logo=javascript" alt="Vanilla JS">
-  <img src="https://img.shields.io/badge/Security-Local_Only-06B6D4?style=for-the-badge&logo=shield" alt="Local Security">
+  <a href="https://www.youtube.com/watch?v=TU_VIDEO_AQUI">
+    <img src="https://img.shields.io/badge/YouTube-Watch%20Sentinel%20in%20Action-red?style=for-the-badge&logo=youtube" alt="NIST Sentinel Demo">
+  </a>
+  <img src="https://img.shields.io/badge/Deployment-Air--Gapped%20Ready-blue?style=for-the-badge&logo=shield" alt="Air-Gapped">
+  <img src="https://img.shields.io/badge/Data-Zero--Storage%20Policy-emerald?style=for-the-badge&logo=lock" alt="Zero Storage">
 </p>
 
 **NIST Sentinel** is a high-performance orchestrator designed to simplify, visualize, and manage cybersecurity audits. Built specifically for the **NIST CSF 2.0**, it transforms complex compliance requirements into an intuitive, action-oriented workflow for modern security teams.
