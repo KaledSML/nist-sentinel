@@ -1,5 +1,13 @@
-
 # 🛡️ NIST Sentinel: Cybersecurity Framework (CSF) 2.0 Compliance Tool
+
+<p align="center">
+  <img src="nist_sentinel.png" alt="NIST Sentinel Professional Banner" width="100%">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Logic-Vanilla_JS-yellow?style=for-the-badge&logo=javascript" alt="Vanilla JS">
+  <img src="https://img.shields.io/badge/Security-Local_Only-06B6D4?style=for-the-badge&logo=shield" alt="Local Security">
+</p>
 
 **NIST Sentinel** is a high-performance orchestrator designed to simplify, visualize, and manage cybersecurity audits. Built specifically for the **NIST CSF 2.0**, it transforms complex compliance requirements into an intuitive, action-oriented workflow for modern security teams.
 
