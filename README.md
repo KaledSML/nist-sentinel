@@ -1,18 +1,12 @@
+
 # 🛡️ NIST Sentinel: Cybersecurity Framework (CSF) 2.0 Compliance Tool
 
-**NIST Sentinel** is a professional-grade orchestrator designed to simplify, visualize, and manage cybersecurity audits. Built specifically for the **NIST CSF 2.0**, it transforms complex compliance requirements into an intuitive, action-oriented workflow.
-
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Status: Live](https://img.shields.io/badge/Status-Live-emerald)
-![JS: ES6+](https://img.shields.io/badge/JS-ES6%2B-yellow?logo=javascript&logoColor=black)
-![CSS: Tailwind](https://img.shields.io/badge/Style-Tailwind_CSS-06B6D4?logo=tailwind-css&logoColor=white)
-![NIST Framework](https://img.shields.io/badge/Framework-NIST_CSF_2.0-blue)
-![Focus: IT Audit](https://img.shields.io/badge/Focus-IT_Audit-orange)
+**NIST Sentinel** is a high-performance orchestrator designed to simplify, visualize, and manage cybersecurity audits. Built specifically for the **NIST CSF 2.0**, it transforms complex compliance requirements into an intuitive, action-oriented workflow for modern security teams.
 
 ---
 
+## 📖 Deep Dive: What is the NIST CSF 2.0?
 
-## 📖 What is the NIST CSF 2.0?
 The **NIST Cybersecurity Framework (CSF) 2.0** is the global gold standard for managing and reducing cybersecurity risk. Developed by the *National Institute of Standards and Technology*, it provides a common language and systematic methodology for organizations to understand, implement, and prioritize their security posture.
 
 > **Official Resource:** [Explore the NIST CSF 2.0 Framework Official Site](https://www.nist.gov/cyberframework) 🌐
@@ -22,39 +16,37 @@ The **NIST Cybersecurity Framework (CSF) 2.0** is the global gold standard for m
 ## 🎯 Technical Value Proposition
 
 * **For Auditors:** Transition from static "Excel-based audits" to a visual Kanban system that tracks control maturity in real-time.
-* **For IT Managers:** Gain immediate visibility into which controls are pending, in progress, or successfully assessed across the **Govern, Identify, Protect, Detect, Respond, and Recover** functions.
+* **For IT Managers:** Gain immediate visibility into which controls are pending, in progress, or successfully assessed across all Core functions.
 * **For Compliance Officers:** Ensure total **Data Sovereignty**. Since the tool is serverless, sensitive audit data never leaves the local environment.
 
 ---
 
-## 🚀 Key Features
+## 🚀 Key Features & Core Modules
 
 ### 📋 Interactive Audit Board
 
 Manage the full lifecycle of a NIST subcategory with a simple drag-and-drop interface. It supports the entire NIST CSF 2.0 Core:
 
-* **Govern (GV)**;
-* **Identify (ID)**;
-* **Protect (PR)**;
-* **Detect (DE)**;
-* **Respond (RS)**;
-* **Recover (RC)**.
-  
+* **Govern (GV):** Establish and monitor the organization’s cybersecurity risk management strategy.
+* **Identify (ID):** Understand the cybersecurity risk to assets, data, and capabilities.
+* **Protect (PR):** Develop and implement appropriate safeguards.
+* **Detect (DE):** Identify the occurrence of a cybersecurity event.
+* **Respond (RS):** Take action regarding a detected cybersecurity incident.
+* **Recover (RC):** Restore any capabilities or services impaired due to an incident.
 
 ### 💾 Privacy by Design (Air-Gapped Ready)
 
 Built for high-security environments, Sentinel uses a **Zero-Server Architecture**:
-* **No Databases:** Leverages the browser's secure `LocalStorage`.
-* **No Cloud Dependency:** Ideal for secure or restricted environments where internet access is limited.
-* **Portable Sessions:** Export your entire audit as a **JSON file** to resume it later on any device.
-  
+
+* **Zero Database Footprint:** Leverages the browser's secure `LocalStorage` API.
+* **Air-Gapped Operations:** Ideal for secure environments where internet access is restricted or prohibited.
+* **Portable State Serialization:** Export your entire audit as a **JSON file** to resume sessions on any device.
 
 ### 🖨️ Professional Reporting
 
-Generate clean, audit-ready summaries. The tool features a specialized CSS print layer that removes UI clutter, producing "presentation-ready" PDF documents for stakeholders.
+The tool features a specialized CSS print layer that removes UI clutter, producing "presentation-ready" PDF documents for stakeholders.
 
 ---
-
 
 ## 🏗️ System Architecture & Design (UML)
 
@@ -112,20 +104,27 @@ classDiagram
 
 ---
 
-## 📥 Getting Started
+## 🔧 Installation & Usage
 
-No installation or complex configuration required:
+1. **Clone the repository:**
 
-1. **Clone the repository:** `git clone https://github.com/KaledSML/nist-sentinel.git`
+```bash
+git clone https://github.com/KaledSML/nist-sentinel.git
+
+```
+
 2. **Launch:** Open `index.html` in any modern web browser.
-3. **Audit:** Start mapping your security posture immediately.
+3. **Audit:** Select a category and start dragging controls based on your current maturity level.
 
 ---
 
 > [!IMPORTANT]
 > ### 🛡️ NIST SENTINEL: SECURITY ADVISORY
-> **Developer:** [kaledsml](https://github.com/kaledsml)  
-> **Status:** `Stable / Production Ready`  
-> **Encryption:** `Local-Only (Client-Side)`
->
-> *Engineering secure solutions from the bit level up.* > Any data processed by this tool remains within the user's local security perimeter.
+> 
+> 
+> **Developer:** [kaledsml](https://github.com/kaledsml)
+> **Status:** `Stable / Production Ready`
+> **Data Policy:** `Zero-Knowledge Architecture`
+> *Engineering secure solutions from the bit level up.* > Any data processed by this tool remains within the user's local security perimeter. No external APIs or tracking scripts are used.
+
+---
