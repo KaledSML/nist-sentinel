@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=TU_VIDEO_AQUI">
+  <a href="https://www.youtube.com/watch?v=MbYpAKBpVT4">
     <img src="https://img.shields.io/badge/YouTube-Watch%20Sentinel%20in%20Action-red?style=for-the-badge&logo=youtube" alt="NIST Sentinel Demo">
   </a>
   <img src="https://img.shields.io/badge/Deployment-Air--Gapped%20Ready-blue?style=for-the-badge&logo=shield" alt="Air-Gapped">
