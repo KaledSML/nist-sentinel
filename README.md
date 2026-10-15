@@ -1,141 +1,94 @@
-# 🛡️ NIST Sentinel: Cybersecurity Framework (CSF) 2.0 Compliance Tool
+# 🛡️ NIST Sentinel: CSF 2.0 Audit Support Tool
 
 <p align="center">
-  <img src="nist_sentinel.png" alt="NIST Sentinel Professional Banner" width="100%">
+  <img src="nist_sentinel.png" alt="NIST Sentinel banner" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=MbYpAKBpVT4">
-    <img src="https://img.shields.io/badge/YouTube-Watch%20Sentinel%20in%20Action-red?style=for-the-badge&logo=youtube" alt="NIST Sentinel Demo">
+  <a href="https://kaledsml.github.io/nist-sentinel/">
+    <img src="https://img.shields.io/badge/Live%20Demo-Open%20the%20app-blue?style=for-the-badge&logo=githubpages" alt="Live demo">
   </a>
-  <img src="https://img.shields.io/badge/Deployment-Air--Gapped%20Ready-blue?style=for-the-badge&logo=shield" alt="Air-Gapped">
-  <img src="https://img.shields.io/badge/Data-Zero--Storage%20Policy-emerald?style=for-the-badge&logo=lock" alt="Zero Storage">
+  <a href="https://www.youtube.com/watch?v=MbYpAKBpVT4">
+    <img src="https://img.shields.io/badge/YouTube-Watch%20the%20demo-red?style=for-the-badge&logo=youtube" alt="Demo video">
+  </a>
+  <img src="https://img.shields.io/badge/Architecture-Client--side%20only-emerald?style=for-the-badge&logo=lock" alt="Client-side only">
 </p>
 
-**NIST Sentinel** is a high-performance orchestrator designed to simplify, visualize, and manage cybersecurity audits. Built specifically for the **NIST CSF 2.0**, it transforms complex compliance requirements into an intuitive, action-oriented workflow for modern security teams.
+**NIST Sentinel** is a browser-based tool that turns the **NIST Cybersecurity Framework (CSF) 2.0** into a visual audit checklist: track each control, attach notes as evidence, see progress per Function, and export an audit report.
+
+> **Status:** v1.0 working prototype for audit support. Findings must be validated by a qualified information security auditor.
 
 ---
 
-## 📖 Deep Dive: What is the NIST CSF 2.0?
+## 💡 Why I built it
 
-The **NIST Cybersecurity Framework (CSF) 2.0** is the global gold standard for managing and reducing cybersecurity risk. Developed by the *National Institute of Standards and Technology*, it provides a common language and systematic methodology for organizations to understand, implement, and prioritize their security posture.
-
-> **Official Resource:** [Explore the NIST CSF 2.0 Framework Official Site](https://www.nist.gov/cyberframework) 🌐
+During my internal audit internship I saw how framework-based audits were tracked in spreadsheets: hard to see progress at a glance, hard to share, and easy to lose context. I built Sentinel to explore a lighter alternative that keeps the audit data on the auditor's own machine.
 
 ---
 
-## 🎯 Technical Value Proposition
+## 🚀 What it does
 
-* **For Auditors:** Transition from static "Excel-based audits" to a visual Kanban system that tracks control maturity in real-time.
-* **For IT Managers:** Gain immediate visibility into which controls are pending, in progress, or successfully assessed across all Core functions.
-* **For Compliance Officers:** Ensure total **Data Sovereignty**. Since the tool is serverless, sensitive audit data never leaves the local environment.
-
----
-
-## 🚀 Key Features & Core Modules
-
-### 📋 Interactive Audit Board
-
-Manage the full lifecycle of a NIST subcategory with a simple drag-and-drop interface. It supports the entire NIST CSF 2.0 Core:
-
-* **Govern (GV):** Establish and monitor the organization’s cybersecurity risk management strategy.
-* **Identify (ID):** Understand the cybersecurity risk to assets, data, and capabilities.
-* **Protect (PR):** Develop and implement appropriate safeguards.
-* **Detect (DE):** Identify the occurrence of a cybersecurity event.
-* **Respond (RS):** Take action regarding a detected cybersecurity incident.
-* **Recover (RC):** Restore any capabilities or services impaired due to an incident.
-
-### 💾 Privacy by Design (Air-Gapped Ready)
-
-Built for high-security environments, Sentinel uses a **Zero-Server Architecture**:
-
-* **Zero Database Footprint:** Leverages the browser's secure `LocalStorage` API.
-* **Air-Gapped Operations:** Ideal for secure environments where internet access is restricted or prohibited.
-* **Portable State Serialization:** Export your entire audit as a **JSON file** to resume sessions on any device.
-
-### 🖨️ Professional Reporting
-
-The tool features a specialized CSS print layer that removes UI clutter, producing "presentation-ready" PDF documents for stakeholders.
+- **Full CSF 2.0 Core:** the six Functions (Govern, Identify, Protect, Detect, Respond, Recover) with their categories and subcategories.
+- **Board view:** each Function appears as a card in **Backlog / In Progress / Assessed**, placed automatically according to how many of its controls are checked.
+- **Control checklist with notes:** open a Function, check controls as implemented and write audit notes per control.
+- **Progress tracking:** per-Function and global completion percentages.
+- **Export / import sessions:** save your audit as a JSON file and resume it later or on another device.
+- **Audit report:** a printable report with a radar chart (balance across Functions), a bar chart (implementation %) and a detailed control log with your notes, ready to save as PDF.
+- **Light and dark mode.**
 
 ---
 
-## 🏗️ System Architecture & Design (UML)
+## 🔒 Privacy and data handling
 
-To ensure transparency for IT auditors and developers, the system follows a **Modular Client-Side Logic** pattern.
+- **No backend, no accounts, no analytics.** Everything is processed in your browser.
+- **Where data lives:** progress and notes are saved in the browser's `LocalStorage` on your device, and nowhere else.
+- **Treat exports as sensitive:** the JSON session file is plain text and unencrypted. Store and share it accordingly.
+- **Third-party libraries:** Tailwind CSS, Chart.js, SortableJS and the Inter font are loaded from public CDNs, so the first load needs an internet connection. Fully offline use would require bundling them locally (see roadmap).
 
-### 1. Functional Logic Flow (Sequence Diagram)
+---
 
-NIST Sentinel operates as a closed loop between the User Interface and the Browser's Persistence Layer.
+## 🏗️ How it works
 
 ```mermaid
-sequenceDiagram
-    participant User
-    participant UI as Board UI (Tailwind)
-    participant Core as Logic Handler (JS)
-    participant Storage as LocalStorage / JSON
-
-    User->>UI: Select NIST Subcategory
-    UI->>Core: Trigger Status Change (Drag & Drop)
-    Core->>Core: Update State Object
-    Core->>Storage: Serialize & Save JSON
-    Storage-->>UI: Refresh Maturity Indicator
-    User->>UI: Click "Print Report"
-    UI->>Core: Apply Print CSS Media Query
-    Core-->>User: Generate Audit-Ready PDF
-
+flowchart LR
+    D[nistData<br/>CSF 2.0 Core] --> R[renderCards]
+    S[(auditStatus<br/>LocalStorage)] --> R
+    R --> B[Board: Backlog / In Progress / Assessed]
+    B -->|open a Function| M[Modal: checklist + notes]
+    M -->|check / write note| S
+    S <-->|export / import| J[JSON session file]
+    S --> P[Audit report<br/>charts + control log]
 ```
 
-### 2. Class Structure (State Management)
-
-The application architecture is centered around a high-fidelity synchronization model:
-
-```mermaid
-classDiagram
-    class NIST_Sentinel {
-        +State currentAudit
-        +Object NIST_Metadata
-        +loadAudit()
-        +saveAudit()
-        +exportJSON()
-    }
-    class ControlManager {
-        +String subcategoryID
-        +String maturityLevel
-        +updateStatus(newStatus)
-    }
-    class UI_Renderer {
-        +renderKanban()
-        +applyFilters()
-        +generateReport()
-    }
-    NIST_Sentinel --> ControlManager : manages
-    NIST_Sentinel --> UI_Renderer : updates
-
-```
+**Stack:** HTML, vanilla JavaScript, Tailwind CSS (CDN), Chart.js, SortableJS.
 
 ---
 
-## 🔧 Installation & Usage
+## 🔧 Run it
 
-1. **Clone the repository:**
+Open the **[live demo](https://kaledsml.github.io/nist-sentinel/)**, or clone and open locally:
 
 ```bash
 git clone https://github.com/KaledSML/nist-sentinel.git
-
+cd nist-sentinel
+# open index.html in a modern browser
 ```
 
-2. **Launch:** Open `index.html` in any modern web browser.
-3. **Audit:** Select a category and start dragging controls based on your current maturity level.
+---
+
+## 🧭 Known limitations and roadmap
+
+- [ ] Bundle all libraries locally (with integrity checks) for true offline use.
+- [ ] Harden session import: strict schema validation and output escaping for notes.
+- [ ] Optional encrypted export (passphrase-based, Web Crypto API).
+- [ ] Maturity levels per control instead of a single implemented / not assessed state.
+- [ ] Drag-and-drop status changes (today the board groups cards automatically).
+- [ ] Automated tests.
 
 ---
 
-> [!IMPORTANT]
-> ### 🛡️ NIST SENTINEL: SECURITY ADVISORY
-> 
-> 
-> **Developer:** [kaledsml](https://github.com/kaledsml)
-> **Status:** `Stable / Production Ready`
-> **Data Policy:** `Zero-Knowledge Architecture`
-> *Engineering secure solutions from the bit level up.* > Any data processed by this tool remains within the user's local security perimeter. No external APIs or tracking scripts are used.
+## 📄 License
 
----
+MIT. See [LICENSE](LICENSE).
+
+Built by [@kaledsml](https://github.com/kaledsml) 🐯
