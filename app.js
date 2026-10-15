@@ -1,29 +1,103 @@
+/* =========================================================
+   NIST Sentinel - lógica principal
 
-// 2. Estado (Audit Logs)
-let auditStatus = JSON.parse(localStorage.getItem('nist_audit_v2')) || { checks: {}, notes: {} };
+   Este archivo se carga DESPUÉS de:
+     - data.js    -> define la lista `nistData` (los controles NIST)
+     - report.js  -> define `generateProfessionalReport()`
+   Orden de las secciones:
+     1. Utilidades de seguridad
+     2. Estado (carga y guardado)
+     3. Tarjetas del tablero
+     4. Ventana modal (checks y notas)
+     5. Progreso global y tema
+     6. Inicio
+   ========================================================= */
 
-// 3. Renderizado de Tarjetas
+const STORAGE_KEY = 'nist_audit_v2';
+const MAX_NOTE_LENGTH = 5000;
+
+/* ---------- 1. UTILIDADES DE SEGURIDAD ---------- */
+
+// Convierte texto del usuario en texto "inofensivo" para HTML.
+// Sin esto, una nota como  </textarea><img src=x onerror=...>  se ejecutaría
+// como código. Se usa SIEMPRE que un texto escrito por alguien se pinta con innerHTML.
+function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+}
+
+/* ---------- 2. ESTADO ---------- */
+
+// Lista de códigos válidos (GV.OC-01, ID.AM-01...). Solo estos se aceptan al cargar.
+const VALID_CODES = new Set(
+    nistData.flatMap(p => p.categories.flatMap(c => c.items.map(i => i.code)))
+);
+
+// Lee lo guardado y lo "limpia": si faltan datos, está corrupto o fue manipulado,
+// se ignora lo raro en lugar de romper la app.
+function loadAudit() {
+    const clean = { checks: {}, notes: {} };
+    try {
+        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (!raw || typeof raw !== 'object') return clean;
+        VALID_CODES.forEach(code => {
+            if (raw.checks && raw.checks[code] === true) clean.checks[code] = true;
+            if (raw.notes && typeof raw.notes[code] === 'string') {
+                clean.notes[code] = raw.notes[code].slice(0, MAX_NOTE_LENGTH);
+            }
+        });
+    } catch (err) {
+        console.warn('Datos guardados ilegibles, se inicia vacío:', err);
+    }
+    return clean;
+}
+
+let auditStatus = loadAudit();
+
+// Guarda en el navegador (sin redibujar nada).
+function persist() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(auditStatus));
+    } catch (err) {
+        alert('No se pudo guardar (almacenamiento lleno o bloqueado por el navegador).');
+    }
+}
+
+// Guarda y redibuja las tarjetas.
+function save() {
+    persist();
+    renderCards();
+}
+
+// Cuenta controles marcados de una lista de items -> { checked, total, percent }
+function getStats(items) {
+    const checked = items.filter(i => auditStatus.checks[i.code]).length;
+    const percent = items.length ? Math.round((checked / items.length) * 100) : 0;
+    return { checked, total: items.length, percent };
+}
+
+/* ---------- 3. TARJETAS DEL TABLERO ---------- */
+
+// Cada función NIST es una tarjeta. La columna se decide por su avance:
+// 0% -> Backlog, 1-99% -> In Progress, 100% -> Assessed.
 function renderCards() {
     const colTodo = document.getElementById('col-todo');
     const colProgress = document.getElementById('col-progress');
     const colDone = document.getElementById('col-done');
-
     if (!colTodo || !colProgress || !colDone) return;
 
-    colTodo.innerHTML = ''; 
+    colTodo.innerHTML = '';
     colProgress.innerHTML = '';
     colDone.innerHTML = '';
 
     nistData.forEach(pilar => {
-        const allItems = pilar.categories.flatMap(c => c.items);
-        const totalItems = allItems.length;
-        const checkedItems = allItems.filter(item => auditStatus.checks[item.code]).length;
-        const percent = Math.round((checkedItems / totalItems) * 100);
+        const { checked, total, percent } = getStats(pilar.categories.flatMap(c => c.items));
 
         const card = document.createElement('div');
         card.className = `card bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-md border-t-4 border-${pilar.color}-500 dark:border-zinc-800 transition-all duration-500`;
         card.dataset.id = pilar.id;
-        
+
         card.innerHTML = `
             <div class="flex justify-between items-start mb-3">
                 <span class="text-[10px] font-bold bg-${pilar.color}-100 text-${pilar.color}-700 dark:bg-${pilar.color}-900/30 dark:text-${pilar.color}-400 px-2 py-0.5 rounded uppercase">${pilar.id}</span>
@@ -36,7 +110,7 @@ function renderCards() {
             <div class="space-y-2">
                 <div class="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
                     <span class="text-zinc-400">Progress</span>
-                    <span class="text-${pilar.color}-600 dark:text-${pilar.color}-400">${checkedItems} / ${totalItems} (${percent}%)</span>
+                    <span class="text-${pilar.color}-600 dark:text-${pilar.color}-400">${checked} / ${total} (${percent}%)</span>
                 </div>
                 <div class="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                     <div class="bg-${pilar.color}-500 h-full transition-all duration-500" style="width: ${percent}%"></div>
@@ -52,32 +126,31 @@ function renderCards() {
     updateGlobalProgress();
 }
 
+/* ---------- 4. VENTANA MODAL (checks y notas) ---------- */
 
-// 5. Modal y Lógica de Checks (Tus funciones originales mejoradas)
+// Abre el detalle de una función: categorías desplegables con sus controles.
 function openPilar(id) {
     const pilar = nistData.find(p => p.id === id);
+    if (!pilar) return;
+
     document.getElementById('modal-title').innerText = pilar.title;
     document.getElementById('modal-cat-id').innerText = `Pilar ${pilar.id.toUpperCase()}`;
     const content = document.getElementById('modal-content');
     content.innerHTML = '';
 
     pilar.categories.forEach(cat => {
-        const catTotal = cat.items.length;
-        const catChecked = cat.items.filter(i => auditStatus.checks[i.code]).length;
-        const catPercent = Math.round((catChecked / catTotal) * 100);
+        const { percent } = getStats(cat.items);
 
         const section = document.createElement('div');
-        section.className = "mb-3 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden";
+        section.className = 'mb-3 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden';
         section.innerHTML = `
-            <button onclick="this.nextElementSibling.classList.toggle('hidden')" 
+            <button onclick="this.nextElementSibling.classList.toggle('hidden')"
                 class="w-full flex justify-between items-center p-4 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 transition-all">
                 <div class="text-left">
                     <p class="text-[9px] font-black text-blue-600 uppercase tracking-widest">${cat.id}</p>
                     <h5 class="text-sm font-bold text-zinc-800 dark:text-zinc-100">${cat.name}</h5>
                 </div>
-                <span id="badge-${cat.id}" class="text-[10px] px-2 py-1 rounded-lg border ${catPercent === 100 ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200'}">
-                    ${catPercent}%
-                </span>
+                <span id="badge-${cat.id}" class="text-[10px] px-2 py-1 rounded-lg border ${percent === 100 ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200'}">${percent}%</span>
             </button>
             <div class="hidden p-6 space-y-6 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800">
                 ${cat.items.map(item => {
@@ -85,106 +158,83 @@ function openPilar(id) {
                     return `
                     <div class="space-y-3">
                         <label class="flex items-start gap-4 cursor-pointer group">
-                            <input type="checkbox" class="w-5 h-5 mt-1 rounded-lg accent-emerald-500" 
-                                ${isChecked ? 'checked' : ''} 
+                            <input type="checkbox" class="w-5 h-5 mt-1 rounded-lg accent-emerald-500"
+                                ${isChecked ? 'checked' : ''}
                                 onchange="toggleCheck('${item.code}', this)">
                             <div class="flex-1">
                                 <p class="text-[10px] font-bold text-zinc-400">${item.code}</p>
                                 <p class="item-text text-sm font-semibold ${isChecked ? 'line-through opacity-50' : ''}">${item.text}</p>
                             </div>
                         </label>
-                        <textarea placeholder="Audit Notes..." class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl" oninput="saveNote('${item.code}', this.value)">${auditStatus.notes[item.code] || ''}</textarea>
+                        <textarea placeholder="Audit Notes..." maxlength="${MAX_NOTE_LENGTH}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl" oninput="saveNote('${item.code}', this.value)">${escapeHtml(auditStatus.notes[item.code] || '')}</textarea>
                     </div>`;
                 }).join('')}
             </div>
         `;
         content.appendChild(section);
     });
+
     document.getElementById('modal').classList.remove('hidden');
 }
 
+// Marca/desmarca un control. Actualiza el tachado y el % de su categoría al instante.
 function toggleCheck(code, inputEl) {
     auditStatus.checks[code] = inputEl.checked;
+
+    const label = inputEl.closest('label');
+    label.querySelector('.item-text').classList.toggle('line-through', inputEl.checked);
+    label.querySelector('.item-text').classList.toggle('opacity-50', inputEl.checked);
+
+    const cat = nistData.flatMap(p => p.categories).find(c => c.items.some(i => i.code === code));
+    const badge = document.getElementById(`badge-${cat.id}`);
+    const { percent } = getStats(cat.items);
+    badge.innerText = `${percent}%`;
+    badge.classList.toggle('bg-emerald-500', percent === 100);
+    badge.classList.toggle('text-white', percent === 100);
+
     save();
 }
 
+// Guarda una nota. No redibuja tarjetas en cada tecla (antes lo hacía y era lento).
 function saveNote(code, value) {
-    auditStatus.notes[code] = value;
-    save();
+    auditStatus.notes[code] = value.slice(0, MAX_NOTE_LENGTH);
+    persist();
 }
 
-function save() {
-    localStorage.setItem('nist_audit_v2', JSON.stringify(auditStatus));
-    renderCards();
+function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+    renderCards(); // refresca el tablero al cerrar, por si hubo notas nuevas
 }
+
+/* ---------- 5. PROGRESO GLOBAL Y TEMA ---------- */
 
 function updateGlobalProgress() {
-    const allItems = nistData.flatMap(p => p.categories.flatMap(c => c.items));
-    const checked = allItems.filter(item => auditStatus.checks[item.code]).length;
-    const percent = allItems.length > 0 ? Math.round((checked / allItems.length) * 100) : 0;
-    
+    const { percent } = getStats(nistData.flatMap(p => p.categories.flatMap(c => c.items)));
     const bar = document.getElementById('main-progress-bar');
     const text = document.getElementById('total-percent');
-    if(bar) bar.style.width = percent + '%';
-    if(text) text.innerText = percent + '%';
+    if (bar) bar.style.width = percent + '%';
+    if (text) text.innerText = percent + '%';
 }
-
-function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 
 function toggleTheme() {
     document.documentElement.classList.toggle('dark');
     localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
 }
 
+/* ---------- 6. INICIO ---------- */
 
-// Función para exportar los datos actuales a un archivo .json
-function exportAuditSession() {
-    const dataStr = JSON.stringify(auditStatus, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `Sentinel_Audit_${new Date().toISOString().split('T')[0]}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-}
-
-// Función para importar datos desde un archivo .json
-function importAuditSession(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const importedData = JSON.parse(e.target.result);
-            
-            // Verificamos que el archivo tenga la estructura correcta
-            if (importedData.checks && importedData.notes) {
-                // Actualizamos el objeto global
-                auditStatus = importedData;
-                
-                // Forzamos el guardado en LocalStorage y el refresco visual
-                save(); 
-                
-                alert("✓ Auditoría cargada correctamente.");
-            } else {
-                alert("❌ Formato de archivo no reconocido.");
-            }
-        } catch (err) {
-            console.error("Error al importar:", err);
-            alert("❌ El archivo no es un JSON válido.");
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = ''; // Limpiamos el input
-}
-
-
-// Inicialización
 (function init() {
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+
+    // Arrastrar tarjetas (SortableJS). OJO: hoy arrastrar es solo visual,
+    // porque la columna se calcula por avance y se recalcula al guardar.
+    if (typeof Sortable !== 'undefined') {
+        ['col-todo', 'col-progress', 'col-done'].forEach(id => {
+            new Sortable(document.getElementById(id), {
+                group: 'nist-kanban', animation: 300, ghostClass: 'bg-blue-500/10'
+            });
+        });
+    }
+
     renderCards();
 })();
-
