@@ -1,4 +1,4 @@
-// 4. Lógica del Reporte Ejecutivo "Sentinel Smart"
+//  Lógica del Reporte Ejecutivo "Sentinel Smart"
 function generateProfessionalReport() {
     const labels = nistData.map(p => p.id.toUpperCase());
     const values = nistData.map(pilar => {
@@ -8,15 +8,20 @@ function generateProfessionalReport() {
     });
 
     const reportWindow = window.open('', '_blank');
+
+    // Ruta de la carpeta actual: permite que la ventana del reporte
+    // encuentre tailwind.css y vendor/chart.umd.min.js sin internet.
+    const base = new URL('.', location.href).href;
+
     reportWindow.document.write(`
         <html>
         <head>
             <title>NIST-Sentinel_Audit_Report_${new Date().toISOString().split('T')[0]}</title>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <base href="${base}">
+            <link rel="stylesheet" href="tailwind.css">
+            <script src="vendor/chart.umd.min.js"></script>
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-                body { font-family: 'Inter', sans-serif; color: #18181b; }
+                body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: #18181b; }
                 @media print {
                     .no-print { display: none !important; }
                     body { background: white; padding: 0; }
