@@ -77,6 +77,19 @@ function getStats(items) {
     return { checked, total: items.length, percent };
 }
 
+/* ---------- 2b. COLORES DE LAS TARJETAS ----------
+   Tailwind compila solo las clases que aparecen ESCRITAS COMPLETAS en el código.
+   Una clase armada como `border-${color}-500` no se detecta y quedaría sin estilo.
+   Por eso cada color se escribe completo aquí. Para agregar un color: copia un bloque. */
+const COLOR_CLASSES = {
+    zinc:   { border: 'border-zinc-500',   badge: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-400',     text: 'text-zinc-600 dark:text-zinc-400',     bar: 'bg-zinc-500' },
+    blue:   { border: 'border-blue-500',   badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',     text: 'text-blue-600 dark:text-blue-400',     bar: 'bg-blue-500' },
+    green:  { border: 'border-green-500',  badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', text: 'text-green-600 dark:text-green-400',   bar: 'bg-green-500' },
+    yellow: { border: 'border-yellow-500', badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', text: 'text-yellow-600 dark:text-yellow-400', bar: 'bg-yellow-500' },
+    red:    { border: 'border-red-500',    badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',         text: 'text-red-600 dark:text-red-400',       bar: 'bg-red-500' },
+    purple: { border: 'border-purple-500', badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', text: 'text-purple-600 dark:text-purple-400', bar: 'bg-purple-500' }
+};
+
 /* ---------- 3. TARJETAS DEL TABLERO ---------- */
 
 // Cada función NIST es una tarjeta. La columna se decide por su avance:
@@ -94,13 +107,14 @@ function renderCards() {
     nistData.forEach(pilar => {
         const { checked, total, percent } = getStats(pilar.categories.flatMap(c => c.items));
 
+        const col = COLOR_CLASSES[pilar.color] || COLOR_CLASSES.zinc;
         const card = document.createElement('div');
-        card.className = `card bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-md border-t-4 border-${pilar.color}-500 dark:border-zinc-800 transition-all duration-500`;
+        card.className = `card bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-md border-t-4 ${col.border} dark:border-zinc-800 transition-all duration-500`;
         card.dataset.id = pilar.id;
 
         card.innerHTML = `
             <div class="flex justify-between items-start mb-3">
-                <span class="text-[10px] font-bold bg-${pilar.color}-100 text-${pilar.color}-700 dark:bg-${pilar.color}-900/30 dark:text-${pilar.color}-400 px-2 py-0.5 rounded uppercase">${pilar.id}</span>
+                <span class="text-[10px] font-bold ${col.badge} px-2 py-0.5 rounded uppercase">${pilar.id}</span>
                 <button onclick="openPilar('${pilar.id}')" class="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-xl hover:text-blue-600 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                 </button>
@@ -110,10 +124,10 @@ function renderCards() {
             <div class="space-y-2">
                 <div class="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
                     <span class="text-zinc-400">Progress</span>
-                    <span class="text-${pilar.color}-600 dark:text-${pilar.color}-400">${checked} / ${total} (${percent}%)</span>
+                    <span class="${col.text}">${checked} / ${total} (${percent}%)</span>
                 </div>
                 <div class="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                    <div class="bg-${pilar.color}-500 h-full transition-all duration-500" style="width: ${percent}%"></div>
+                    <div class="${col.bar} h-full transition-all duration-500" style="width: ${percent}%"></div>
                 </div>
             </div>
         `;
