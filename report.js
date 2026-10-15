@@ -124,7 +124,7 @@ function generateProfessionalReport() {
                                             <div class="md:w-1/3 ${note ? 'bg-zinc-100/50 p-4 border-l-2 border-zinc-300' : 'border-2 border-dashed border-zinc-100'} rounded-xl flex flex-col justify-center">
                                                 ${note ? `
                                                     <span class="text-[9px] font-black uppercase text-zinc-400 block mb-1">Auditor Notes:</span>
-                                                    <p class="text-[11px] italic text-zinc-600 leading-relaxed">"${note}"</p>
+                                                    <p class="text-[11px] italic text-zinc-600 leading-relaxed">"${escapeHtml(note)}"</p>
                                                 ` : `
                                                     <span class="text-[9px] font-bold text-zinc-300 uppercase italic text-center px-4">No evidence provided</span>
                                                 `}
