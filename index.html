@@ -6,30 +6,16 @@
     <title>NIST SENTINEL | Cybersecurity Auditor</title>
     <meta name="theme-color" content="#18181b">
 
-    <!-- LIBRERÍAS EXTERNAS (temporal).
-         Hoy se cargan desde internet. En la Meta 3 las bajamos a una carpeta
-         local (vendor/) para que la app funcione sin conexión. -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: { blue: '#3b82f6', zinc: '#71717a' }
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- TODO LOCAL: nada se carga desde internet.
+         tailwind.css se genera con el comando explicado en LEEME-BUILD.txt
+         (la configuración vive en tailwind.config.js). -->
+    <link rel="stylesheet" href="tailwind.css">
+    <script src="vendor/Sortable.min.js"></script>
 
     <style>
         /* 1. Fuentes y general */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        /* Fuente del sistema: cero descargas, se ve nativa en cada dispositivo */
+        body { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
 
         /* 2. Personalización de la interfaz */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
