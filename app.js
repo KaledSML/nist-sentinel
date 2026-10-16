@@ -11,7 +11,8 @@
      4. Tarjetas del tablero
      5. Ventana modal (estados, notas y alcance)
      6. Progreso global y tema
-     7. Inicio
+     7. Eventos (un solo "oyente" para toda la página)
+     8. Inicio
    ========================================================= */
 
 const STORAGE_KEY = 'nist_audit_v2';
@@ -183,10 +184,13 @@ function renderCards() {
         card.className = `card bg-white dark:bg-zinc-900 p-5 rounded-3xl shadow-md border-t-4 ${col.border} dark:border-zinc-800 transition-all duration-500`;
         card.dataset.id = pilar.id;
 
+        // El botón NO lleva código dentro: solo una etiqueta (data-action) que dice
+        // qué hacer y un dato (data-id) que dice con qué función. El "oyente" de la
+        // sección 7 se encarga del resto.
         card.innerHTML = `
             <div class="flex justify-between items-start mb-3">
                 <span class="text-[10px] font-bold ${col.badge} px-2 py-0.5 rounded uppercase">${pilar.id}</span>
-                <button onclick="openPilar('${pilar.id}')" class="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-xl hover:text-blue-600 transition-colors">
+                <button data-action="open-pilar" data-id="${escapeHtml(pilar.id)}" aria-label="Abrir ${escapeHtml(pilar.title)}" class="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-xl hover:text-blue-600 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                 </button>
             </div>
@@ -230,6 +234,8 @@ function statusOptionsHtml(current) {
 }
 
 // Abre el detalle de una función: categorías desplegables con sus controles.
+// Igual que en las tarjetas, ningún elemento lleva código dentro:
+// solo data-action (qué hacer) y data-code / data-cat (con qué control o categoría).
 function openPilar(id) {
     const pilar = nistData.find(p => p.id === id);
     if (!pilar) return;
@@ -246,7 +252,7 @@ function openPilar(id) {
         const section = document.createElement('div');
         section.className = 'mb-3 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden';
         section.innerHTML = `
-            <button onclick="this.nextElementSibling.classList.toggle('hidden')"
+            <button data-action="toggle-category"
                 class="w-full flex justify-between items-center p-4 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 transition-all">
                 <div class="text-left">
                     <p class="text-[9px] font-black text-blue-600 uppercase tracking-widest">${cat.id}</p>
@@ -258,27 +264,28 @@ function openPilar(id) {
                 <label class="flex items-center gap-4 cursor-pointer">
                     <input type="checkbox" id="master-${cat.id}" class="w-4 h-4 rounded accent-emerald-500"
                         ${allInScope ? 'checked' : ''}
-                        onchange="toggleCategoryScope('${cat.id}', this)">
+                        data-action="toggle-category-scope" data-cat="${escapeHtml(cat.id)}">
                     <span class="text-[10px] font-bold uppercase text-zinc-500">Incluir toda la categoría en el alcance</span>
                 </label>
                 ${cat.items.map(item => {
                     const status = getStatus(item.code);
                     const isOut = auditStatus.excluded[item.code];
+                    const code = escapeHtml(item.code);
                     return `
                     <div id="item-${item.code}" class="space-y-3 ${isOut ? 'opacity-50' : ''}">
                         <div>
                             <p class="text-[10px] font-bold text-zinc-400">${item.code}</p>
                             <p class="item-text text-sm font-semibold ${itemTextClass(status)}">${item.text}</p>
                         </div>
-                        <select aria-label="Estado de ${item.code}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl"
-                            onchange="setStatus('${item.code}', this.value)">
+                        <select aria-label="Estado de ${code}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl"
+                            data-action="set-status" data-code="${code}">
                             ${statusOptionsHtml(status)}
                         </select>
-                        <textarea placeholder="Audit Notes..." maxlength="${MAX_NOTE_LENGTH}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl" oninput="saveNote('${item.code}', this.value)">${escapeHtml(auditStatus.notes[item.code] || '')}</textarea>
+                        <textarea placeholder="Audit Notes..." maxlength="${MAX_NOTE_LENGTH}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl" data-action="save-note" data-code="${code}">${escapeHtml(auditStatus.notes[item.code] || '')}</textarea>
                         <label class="flex items-center gap-4 cursor-pointer">
                             <input type="checkbox" class="scope-box w-4 h-4 rounded accent-emerald-500"
                                 ${isOut ? '' : 'checked'}
-                                onchange="toggleScope('${item.code}', this)">
+                                data-action="toggle-scope" data-code="${code}">
                             <span class="text-[10px] font-bold uppercase text-zinc-500">En alcance</span>
                         </label>
                     </div>`;
@@ -305,6 +312,7 @@ function setStatus(code, value) {
 
 // Guarda una nota. No redibuja tarjetas en cada tecla (antes lo hacía y era lento).
 function saveNote(code, value) {
+    if (!VALID_CODES.has(code)) return;
     auditStatus.notes[code] = value.slice(0, MAX_NOTE_LENGTH);
     persist();
 }
@@ -345,6 +353,7 @@ function refreshModal() {
 
 // Incluye o excluye UN control del alcance. checked = true significa "entra en la auditoría".
 function toggleScope(code, inputEl) {
+    if (!VALID_CODES.has(code)) return;
     if (inputEl.checked) delete auditStatus.excluded[code];
     else auditStatus.excluded[code] = true;
     refreshModal();
@@ -383,10 +392,57 @@ function toggleTheme() {
     localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
 }
 
-/* ---------- 7. INICIO ---------- */
+/* ---------- 7. EVENTOS (un solo "oyente" para toda la página) ----------
+   En vez de poner onclick="..." dentro de cada botón, cada elemento lleva una etiqueta
+   data-action="nombre". Aquí hay una tabla que dice qué función corresponde a cada nombre,
+   y UN solo oyente por tipo de evento que busca la etiqueta y llama a la función.
+
+   Ventajas:
+     - El HTML ya no contiene código (requisito para una CSP estricta).
+     - Funciona aunque las tarjetas y la ventana se redibujen, porque el oyente
+       está en `document`, que nunca se redibuja.
+     - Para agregar un botón nuevo: ponle data-action y añade una línea en la tabla.
+   Cada función recibe el elemento que disparó el evento (el `el`). */
+
+// Al hacer clic (botones)
+const CLICK_ACTIONS = {
+    'open-pilar':      el => openPilar(el.dataset.id),
+    'toggle-category': el => el.nextElementSibling.classList.toggle('hidden'),
+    'close-modal':     () => closeModal(),
+    'toggle-theme':    () => toggleTheme(),
+    'export-report':   () => generateProfessionalReport()
+};
+
+// Al cambiar un valor (selectores y casillas)
+const CHANGE_ACTIONS = {
+    'set-status':            el => setStatus(el.dataset.code, el.value),
+    'toggle-scope':          el => toggleScope(el.dataset.code, el),
+    'toggle-category-scope': el => toggleCategoryScope(el.dataset.cat, el)
+};
+
+// Al escribir (cajas de texto)
+const INPUT_ACTIONS = {
+    'save-note': el => saveNote(el.dataset.code, el.value)
+};
+
+// Crea un oyente que busca la etiqueta data-action más cercana al elemento tocado.
+function listenFor(eventName, actions) {
+    document.addEventListener(eventName, event => {
+        const el = event.target.closest('[data-action]');
+        if (!el) return;
+        const action = actions[el.dataset.action];
+        if (action) action(el);
+    });
+}
+
+/* ---------- 8. INICIO ---------- */
 
 (function init() {
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+
+    listenFor('click', CLICK_ACTIONS);
+    listenFor('change', CHANGE_ACTIONS);
+    listenFor('input', INPUT_ACTIONS);
 
     // Arrastrar tarjetas (SortableJS). OJO: hoy arrastrar es solo visual,
     // porque la columna se calcula por avance y se recalcula al guardar.
