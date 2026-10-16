@@ -6,21 +6,23 @@
     <title>NIST SENTINEL | Cybersecurity Auditor</title>
     <meta name="theme-color" content="#18181b">
 
-    <!-- POLÍTICA DE SEGURIDAD (CSP) - PREPARADA, TODAVÍA DESACTIVADA
+    <!-- POLÍTICA DE SEGURIDAD (CSP) - ACTIVA
          Bloquea cualquier script que no venga de tus propios archivos.
-         Se activa en la Meta 5, cuando el reporte deje de ser una ventana
-         emergente (hoy esa ventana usa un script interno y se rompería).
-         Para activarla: quita el "<!--" del inicio y el "- ->" del final.
+         Si algún día algo deja de funcionar, abre F12 → Console:
+         los bloqueos de la CSP aparecen ahí en rojo. -->
 
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
-    -->
-
+          
     <!-- TODO LOCAL: nada se carga desde internet.
          tailwind.css se genera con el comando explicado en LEEME-BUILD.txt
          (la configuración vive en tailwind.config.js). -->
     <link rel="stylesheet" href="tailwind.css">
+    <!-- NUEVO 5a: estilos propios del reporte (colores de estados, resumen, etc.) -->
+    <link rel="stylesheet" href="report.css">
     <script src="vendor/Sortable.min.js"></script>
+    <!-- NUEVO 5a: Chart.js ahora se carga aquí, porque el reporte vive en esta página -->
+    <script src="vendor/chart.umd.min.js"></script>
 
     <style>
         /* 1. Fuentes y general */
@@ -40,7 +42,16 @@
         .nist-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .nist-card:hover { transform: translateY(-4px); }
 
-        /* 3. Configuración para impresión (oculta botones y barra) */
+        /* 3. NUEVO 5a: alternar entre tablero y reporte.
+              app.js añade la clase "report-open" al <body> cuando se abre el reporte. */
+        #report-view { display: none; background: #f4f4f5; color: #18181b; min-height: 100vh; }
+        body.report-open #report-view { display: block; }
+        body.report-open > nav,
+        body.report-open > main,
+        body.report-open > footer,
+        body.report-open > #modal { display: none !important; }
+
+        /* 4. Configuración para impresión (oculta botones y barra) */
         @media print {
             nav, button, .no-print { display: none !important; }
             body { background: white !important; color: black !important; padding: 0; }
@@ -59,6 +70,13 @@
                 backdrop-filter: none !important;
             }
             .nist-card { border: 1px solid #eee !important; break-inside: avoid; }
+
+            /* NUEVO 5a: si el reporte está abierto, al imprimir NO sale el tablero.
+               Va después de las reglas de arriba y con más especificidad para ganarles. */
+            body.report-open > main,
+            body.report-open > footer,
+            body.report-open > #modal { display: none !important; }
+            #report-view { background: white !important; min-height: 0; }
         }
     </style>
 </head>
@@ -81,7 +99,7 @@
 
                 <div class="h-10 w-px bg-zinc-200 dark:bg-zinc-800 mx-2"></div>
 
-                <!-- Aquí irá el botón "Descargar Excel" (Meta 5) -->
+                <!-- Aquí irá el botón "Descargar Excel" (Meta 5c) -->
                 <button data-action="export-report" class="flex items-center gap-3 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 active:scale-95">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6-12h6a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2z"></path></svg>
                     Export Report
@@ -130,6 +148,25 @@
             <div id="col-done" class="min-h-[30vh] lg:min-h-[70vh] space-y-4 p-4 kanban-glass rounded-[2.5rem] border-2 border-dashed border-zinc-300 dark:border-zinc-800 transition-all"></div>
         </div>
     </main>
+
+    <!-- ============ NUEVO 5a: VISTA DEL REPORTE ============
+         Está oculta por defecto. Al pulsar "Export Report", app.js añade la clase
+         "report-open" al <body>: se esconde el tablero y aparece esto.
+         report.js escribe el reporte dentro de #report-content. -->
+    <div id="report-view">
+        <!-- Barra de botones (no se imprime) -->
+        <div class="max-w-5xl mx-auto p-8 pb-0 flex justify-between items-center no-print">
+            <button data-action="close-report" class="bg-white text-zinc-900 border border-zinc-200 px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-sm transition-all active:scale-95">
+                ← Back to dashboard
+            </button>
+            <button data-action="print-report" class="bg-zinc-900 hover:bg-black text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">
+                🖨️ Export PDF
+            </button>
+        </div>
+
+        <!-- Aquí report.js dibuja el reporte completo -->
+        <div id="report-content" class="p-8"></div>
+    </div>
 
     <!-- ============ VENTANA MODAL (detalle de cada función) ============ -->
     <div id="modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/90 backdrop-blur-xl p-4 transition-all">
