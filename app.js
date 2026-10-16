@@ -488,7 +488,8 @@ const CLICK_ACTIONS = {
     'close-meta':      () => closeMeta(),     //  cierra "Audit Details"
     'export-report':   () => generateProfessionalReport(),
     'close-report':    () => closeReport(),   //  vuelve al tablero
-    'print-report':    () => printReport()   //  imprime / guarda como PDF
+    'print-report':    () => printReport(),   //  imprime / guarda como PDF
+    'export-excel':    () => downloadExcel() //  NUEVO 5c: descarga el checklist en Excel
 };
 
 // Al cambiar un valor (selectores y casillas)
