@@ -19,6 +19,9 @@ const REPORT_STATUS = {
     na:       { label: 'Not Applicable', css: 'status-na' }
 };
 
+// Texto que se muestra cuando un dato de "Audit Details" quedó vacío.
+const NOT_SPECIFIED = 'Not specified';
+
 // Gráficos activos. Se guardan para destruirlos antes de dibujar otros nuevos
 // (si no, Chart.js se queja al abrir el reporte por segunda vez).
 let reportCharts = [];
@@ -29,6 +32,15 @@ let originalTitle = document.title;
 // ==========================================================
 // 2. CÁLCULO DE DATOS (un solo lugar, lo usan todas las secciones)
 // ==========================================================
+
+// Convierte una fecha guardada (AAAA-MM-DD) en texto legible para el reporte.
+// Se le agrega la hora a propósito ("T00:00:00"): sin eso, el navegador la
+// interpreta en horario UTC y en algunos países mostraría el día anterior.
+// Si no hay fecha guardada, usa la de hoy.
+function formatReportDate(isoDate) {
+    const date = isoDate ? new Date(isoDate + 'T00:00:00') : new Date();
+    return date.toLocaleDateString('en-US');
+}
 
 function collectReportData() {
     const labels = nistData.map(p => p.id.toUpperCase());
@@ -50,7 +62,13 @@ function collectReportData() {
         allItems,
         globalStats,
         counts: globalStats.counts,
-        outOfScopeCount: allItems.length - globalStats.scope
+        outOfScopeCount: allItems.length - globalStats.scope,
+        // Datos de "Audit Details" (vienen de app.js, ya validados)
+        meta: {
+            auditee: auditStatus.meta.auditee,
+            auditor: auditStatus.meta.auditor,
+            date: formatReportDate(auditStatus.meta.date)
+        }
     };
 }
 
@@ -60,7 +78,17 @@ function collectReportData() {
 //    y añádela a la lista de buildReportHtml().
 // ==========================================================
 
-// Encabezado con título, fecha y alcance
+// Una línea del encabezado: etiqueta en gris + valor en negro.
+// El valor viene de lo que escribió la persona, así que SIEMPRE pasa por escapeHtml.
+// Si está vacío, se muestra "Not specified" en gris.
+function buildHeaderLine(label, value) {
+    const text = value && value.trim() ? escapeHtml(value.trim()) : '';
+    return text
+        ? `<p>${label}: <span class="text-zinc-900">${text}</span></p>`
+        : `<p>${label}: ${NOT_SPECIFIED}</p>`;
+}
+
+// Encabezado con título, datos de la auditoría y alcance
 function buildHeader(data) {
     const reportId = Math.random().toString(36).slice(2, 11).toUpperCase();
     return `
@@ -69,9 +97,11 @@ function buildHeader(data) {
                 <h1 class="text-6xl font-black tracking-tighter text-zinc-900 italic uppercase">NIST SENTINEL</h1>
                 <p class="text-xl font-bold text-zinc-500 uppercase tracking-[0.2em] mt-2">NIST CSF Audit Assessment</p>
             </div>
-            <div class="text-right font-bold text-zinc-400 text-[10px] uppercase space-y-1">
+            <div class="text-right font-bold text-zinc-400 text-[10px] uppercase space-y-1 max-w-xs">
                 <p>Report ID: ${reportId}</p>
-                <p>Audit Date: ${new Date().toLocaleDateString('en-US')}</p>
+                ${buildHeaderLine('Audited Area', data.meta.auditee)}
+                ${buildHeaderLine('Auditor', data.meta.auditor)}
+                <p>Audit Date: ${data.meta.date}</p>
                 <p>Scope: ${data.globalStats.scope} of ${data.allItems.length} controls</p>
                 <p class="text-zinc-900">Status: Internal Working Paper</p>
             </div>
