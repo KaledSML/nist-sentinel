@@ -1,11 +1,33 @@
 //  Lógica del Reporte Ejecutivo "Sentinel Smart"
+//  Depende de data.js (nistData) y app.js (auditStatus, getStats, getStatus, STATUS, escapeHtml).
+//  Todos los porcentajes salen de getStats(), el mismo cálculo del tablero,
+//  así el reporte siempre respeta el alcance y los estados de la auditoría.
+
+// Textos del reporte (en inglés) y la clase de color de cada estado.
+// Los colores están definidos en el <style> del reporte (no usan Tailwind),
+// así no hace falta recompilar tailwind.css.
+const REPORT_STATUS = {
+    todo:     { label: 'Not Started',   css: 'status-todo' },
+    progress: { label: 'In Progress',   css: 'status-progress' },
+    done:     { label: 'Implemented',   css: 'status-done' },
+    na:       { label: 'Not Applicable', css: 'status-na' }
+};
+
 function generateProfessionalReport() {
     const labels = nistData.map(p => p.id.toUpperCase());
+
+    // Porcentaje por función, calculado solo sobre los controles que cuentan.
+    // Si no hay ninguno (todo fuera de alcance o todo "No aplica"), el valor es null (no se grafica).
     const values = nistData.map(pilar => {
-        const all = pilar.categories.flatMap(c => c.items);
-        const checked = all.filter(i => auditStatus.checks[i.code]).length;
-        return Math.round((checked / all.length) * 100);
+        const stats = getStats(pilar.categories.flatMap(c => c.items));
+        return stats.total ? stats.percent : null;
     });
+
+    // Resumen general para el encabezado: alcance y conteo por estado.
+    const allItems = nistData.flatMap(p => p.categories.flatMap(c => c.items));
+    const globalStats = getStats(allItems);
+    const outOfScopeCount = allItems.length - globalStats.scope;
+    const c = globalStats.counts;
 
     const reportWindow = window.open('', '_blank');
 
@@ -27,8 +49,22 @@ function generateProfessionalReport() {
                     body { background: white; padding: 0; }
                     .card-report { border: 1px solid #e4e4e7 !important; box-shadow: none !important; border-radius: 20px !important; }
                     .page-break { page-break-before: always; }
+                    /* Para que los colores de los estados salgan también al imprimir */
+                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 }
+
+                /* Etiquetas de estado (colores propios, sin depender de Tailwind) */
                 .status-tag { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; }
+                .status-done     { background: #d1fae5; color: #047857; }
+                .status-progress { background: #fef3c7; color: #b45309; }
+                .status-todo     { background: #e4e4e7; color: #71717a; }
+                .status-na       { background: #e0e7ff; color: #4338ca; }
+
+                /* Resumen por estado del encabezado */
+                .summary-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 48px; }
+                .summary-box { flex: 1; min-width: 120px; padding: 14px 16px; border: 1px solid #e4e4e7; border-radius: 16px; background: #fafafa; }
+                .summary-box .num { font-size: 24px; font-weight: 900; color: #18181b; }
+                .summary-box .lbl { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #a1a1aa; }
             </style>
         </head>
         <body class="bg-zinc-100 p-8">
@@ -47,9 +83,19 @@ function generateProfessionalReport() {
                     <div class="text-right font-bold text-zinc-400 text-[10px] uppercase space-y-1">
                         <p>Report ID: ${Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
                         <p>Audit Date: ${new Date().toLocaleDateString('en-US')}</p>
+                        <p>Scope: ${globalStats.scope} of ${allItems.length} controls</p>
                         <p class="text-zinc-900">Status: Internal Working Paper</p>
                     </div>
                 </header>
+
+                <!-- Conteo por estado (solo controles dentro del alcance) -->
+                <div class="summary-row">
+                    <div class="summary-box"><div class="num">${c.done}</div><div class="lbl">Implemented</div></div>
+                    <div class="summary-box"><div class="num">${c.progress}</div><div class="lbl">In Progress</div></div>
+                    <div class="summary-box"><div class="num">${c.todo}</div><div class="lbl">Not Started</div></div>
+                    <div class="summary-box"><div class="num">${c.na}</div><div class="lbl">Not Applicable</div></div>
+                    <div class="summary-box"><div class="num">${outOfScopeCount}</div><div class="lbl">Out of Scope</div></div>
+                </div>
 
                 <section class="mb-16">
                     <h2 class="text-sm font-black uppercase tracking-[0.4em] text-zinc-400 border-b border-zinc-100 pb-4 mb-10 italic">01. Maturity Analysis Overview</h2>
@@ -62,7 +108,7 @@ function generateProfessionalReport() {
                             <div class="w-full md:w-1/2 space-y-4">
                                 <h3 class="text-xs font-black uppercase tracking-widest text-zinc-900">Maturity Fingerprint</h3>
                                 <p class="text-xs text-zinc-500 leading-relaxed italic">
-                                    The Radar Chart visualizes the balance between the six NIST CSF functions. A symmetrical shape indicates a consistent security posture, while spikes reveal functional strengths or critical gaps in the cybersecurity lifecycle.
+                                    The Radar Chart visualizes the balance between the six NIST CSF functions. A symmetrical shape indicates a consistent security posture, while spikes reveal functional strengths or critical gaps in the cybersecurity lifecycle. Percentages are calculated only over the controls included in the audit scope; controls marked Not Applicable are excluded from the total, and only Implemented controls count toward progress.
                                 </p>
                                 <div class="flex items-center gap-2">
                                     <span class="w-3 h-3 bg-zinc-900 rounded-sm"></span>
@@ -96,8 +142,19 @@ function generateProfessionalReport() {
                 <section class="space-y-12">
                     <h2 class="text-sm font-black uppercase tracking-[0.4em] text-zinc-400 border-b border-zinc-100 pb-4 mb-8 italic">02. Detailed Control Log & Evidence</h2>
                     
-                    ${nistData.map(pilar => {
+                    ${nistData.map((pilar, index) => {
                         const items = pilar.categories.flatMap(c => c.items);
+                        // Separamos los controles según el alcance
+                        const inScopeItems = items.filter(i => !auditStatus.excluded[i.code]);
+                        const outItems = items.filter(i => auditStatus.excluded[i.code]);
+                        const pilarValue = values[index];
+
+                        // Texto grande de la derecha: % o la razón por la que no hay %
+                        let pilarLabel;
+                        if (inScopeItems.length === 0) pilarLabel = 'Out of Scope';
+                        else if (pilarValue === null) pilarLabel = 'Not Applicable';
+                        else pilarLabel = pilarValue + '%';
+
                         return `
                         <div class="mb-12">
                             <div class="flex justify-between items-end mb-6 border-l-4 border-zinc-900 pl-4">
@@ -106,23 +163,23 @@ function generateProfessionalReport() {
                                     <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">${pilar.id} Function</p>
                                 </div>
                                 <div class="text-right">
-                                    <span class="text-2xl font-black text-zinc-900">${values[labels.indexOf(pilar.id.toUpperCase())]}%</span>
+                                    <span class="text-2xl font-black text-zinc-900">${pilarLabel}</span>
                                 </div>
                             </div>
 
                             <div class="space-y-3">
-                                ${items.map(item => {
-                                    const isChecked = auditStatus.checks[item.code];
+                                ${inScopeItems.map(item => {
+                                    const st = getStatus(item.code);
+                                    const tag = REPORT_STATUS[st];
+                                    const isDone = st === STATUS.DONE;
                                     const note = auditStatus.notes[item.code];
                                     return `
-                                    <div class="p-5 ${isChecked ? 'bg-white' : 'bg-zinc-50/50'} rounded-2xl border ${isChecked ? 'border-zinc-200' : 'border-zinc-100'}">
+                                    <div class="p-5 ${isDone ? 'bg-white' : 'bg-zinc-50/50'} rounded-2xl border ${isDone ? 'border-zinc-200' : 'border-zinc-100'}">
                                         <div class="flex flex-col md:flex-row justify-between gap-6">
                                             <div class="flex-1">
                                                 <div class="flex items-center gap-3 mb-2">
                                                     <span class="font-black text-[10px] text-zinc-400">${item.code}</span>
-                                                    <span class="status-tag ${isChecked ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-200 text-zinc-500'}">
-                                                        ${isChecked ? 'Implemented' : 'Not Assessed'}
-                                                    </span>
+                                                    <span class="status-tag ${tag.css}">${tag.label}</span>
                                                 </div>
                                                 <p class="text-sm font-bold text-zinc-800 leading-snug">${item.text}</p>
                                             </div>
@@ -139,6 +196,11 @@ function generateProfessionalReport() {
                                     `;
                                 }).join('')}
                             </div>
+
+                            ${outItems.length ? `
+                            <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4 italic">
+                                Out of scope (${outItems.length}): ${outItems.map(i => i.code).join(', ')}
+                            </p>` : ''}
                         </div>`;
                     }).join('')}
                 </section>
