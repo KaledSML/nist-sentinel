@@ -23,6 +23,8 @@
     <script src="vendor/Sortable.min.js"></script>
     <!-- NUEVO 5a: Chart.js ahora se carga aquí, porque el reporte vive en esta página -->
     <script src="vendor/chart.umd.min.js"></script>
+    <!-- NUEVO 5c: ExcelJS (genera el archivo Excel sin internet) -->
+    <script src="vendor/exceljs.min.js"></script>
 
     <style>
         /* 1. Fuentes y general */
@@ -106,7 +108,11 @@
                     📝 Audit Details
                 </button>
 
-                <!-- Aquí irá el botón "Descargar Excel" (Meta 5c) -->
+                <!-- NUEVO 5c: descarga el checklist en Excel (la acción 'export-excel' se conecta en app.js) -->
+                <button data-action="export-excel" class="flex items-center gap-3 px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm hover:border-blue-500 font-black text-[10px] uppercase tracking-widest transition-all active:scale-95">
+                    📊 Download Excel
+                </button>
+
                 <button data-action="export-report" class="flex items-center gap-3 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 active:scale-95">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6-12h6a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2z"></path></svg>
                     Export Report
@@ -287,6 +293,7 @@
     <!-- ============ SCRIPTS PROPIOS (el orden importa) ============ -->
     <script src="data.js"></script>   <!-- 1º: la lista de controles NIST -->
     <script src="report.js"></script> <!-- 2º: el generador del reporte -->
-    <script src="app.js"></script>    <!-- 3º: la lógica, usa lo anterior -->
+    <script src="excel.js"></script>  <!-- 3º: NUEVO 5c, el generador del Excel (lee los mismos datos que el reporte) -->
+    <script src="app.js"></script>    <!-- 4º: la lógica, usa lo anterior -->
 </body>
 </html>
