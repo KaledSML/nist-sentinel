@@ -1,0 +1,26 @@
+/* ==========================================================
+   report.css: estilos propios del reporte
+   Usa colores propios (sin Tailwind), así no hace falta
+   recompilar tailwind.css cuando se cambian.
+   ========================================================== */
+
+/* Etiquetas de estado de cada control */
+.status-tag { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; }
+.status-done     { background: #d1fae5; color: #047857; }
+.status-progress { background: #fef3c7; color: #b45309; }
+.status-todo     { background: #e4e4e7; color: #71717a; }
+.status-na       { background: #e0e7ff; color: #4338ca; }
+
+/* Resumen por estado del encabezado */
+.summary-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 48px; }
+.summary-box { flex: 1; min-width: 120px; padding: 14px 16px; border: 1px solid #e4e4e7; border-radius: 16px; background: #fafafa; }
+.summary-box .num { font-size: 24px; font-weight: 900; color: #18181b; }
+.summary-box .lbl { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #a1a1aa; }
+
+/* Al imprimir */
+@media print {
+    .card-report { border: 1px solid #e4e4e7 !important; box-shadow: none !important; border-radius: 20px !important; }
+    .page-break { page-break-before: always; }
+    /* Para que los colores de los estados salgan también en el PDF */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
