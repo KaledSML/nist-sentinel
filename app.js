@@ -6,11 +6,12 @@
      - report.js  -> define `generateProfessionalReport()`
    Orden de las secciones:
      1. Utilidades de seguridad
-     2. Estado (carga y guardado)
-     3. Tarjetas del tablero
-     4. Ventana modal (checks y notas)
-     5. Progreso global y tema
-     6. Inicio
+     2. Estados y carga/guardado
+     3. Colores de las tarjetas
+     4. Tarjetas del tablero
+     5. Ventana modal (estados, notas y alcance)
+     6. Progreso global y tema
+     7. Inicio
    ========================================================= */
 
 const STORAGE_KEY = 'nist_audit_v2';
@@ -27,7 +28,26 @@ function escapeHtml(value) {
     }[ch]));
 }
 
-/* ---------- 2. ESTADO ---------- */
+/* ---------- 2. ESTADOS Y CARGA/GUARDADO ---------- */
+
+// Los cuatro estados posibles de un control.
+// El valor (izquierda) es lo que se guarda; el texto (derecha) es lo que se ve.
+// "No iniciado" es el estado por defecto y NO se guarda (ahorra espacio).
+const STATUS = {
+    TODO: 'todo',          // No iniciado
+    PROGRESS: 'progress',  // En progreso
+    DONE: 'done',          // Implementado
+    NA: 'na'               // No aplica
+};
+
+const STATUS_LABELS = {
+    todo: 'No iniciado',
+    progress: 'En progreso',
+    done: 'Implementado',
+    na: 'No aplica'
+};
+
+const VALID_STATUSES = new Set(Object.values(STATUS));
 
 // Lista de códigos válidos (GV.OC-01, ID.AM-01...). Solo estos se aceptan al cargar.
 const VALID_CODES = new Set(
@@ -36,13 +56,32 @@ const VALID_CODES = new Set(
 
 // Lee lo guardado y lo "limpia": si faltan datos, está corrupto o fue manipulado,
 // se ignora lo raro en lugar de romper la app.
+//   status   = estado de cada control (solo los que NO son "No iniciado")
+//   notes    = notas del auditor
+//   excluded = controles fuera del alcance (vacío = todo entra)
+//
+// MIGRACIÓN: la versión anterior guardaba `checks` (true = revisado).
+// Si no existe `status` pero sí `checks`, cada control marcado pasa a "Implementado".
 function loadAudit() {
-    const clean = { checks: {}, notes: {} };
+    const clean = { status: {}, notes: {}, excluded: {} };
     try {
         const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
         if (!raw || typeof raw !== 'object') return clean;
+        const isOldFormat = !raw.status && raw.checks;
+
         VALID_CODES.forEach(code => {
-            if (raw.checks && raw.checks[code] === true) clean.checks[code] = true;
+            // Estado (formato nuevo)
+            const st = raw.status && raw.status[code];
+            if (VALID_STATUSES.has(st) && st !== STATUS.TODO) {
+                clean.status[code] = st;
+            }
+            // Estado (migración desde el formato anterior)
+            else if (isOldFormat && raw.checks[code] === true) {
+                clean.status[code] = STATUS.DONE;
+            }
+
+            if (raw.excluded && raw.excluded[code] === true) clean.excluded[code] = true;
+
             if (raw.notes && typeof raw.notes[code] === 'string') {
                 clean.notes[code] = raw.notes[code].slice(0, MAX_NOTE_LENGTH);
             }
@@ -54,6 +93,11 @@ function loadAudit() {
 }
 
 let auditStatus = loadAudit();
+
+// Devuelve el estado de un control. Si no tiene ninguno guardado, es "No iniciado".
+function getStatus(code) {
+    return auditStatus.status[code] || STATUS.TODO;
+}
 
 // Guarda en el navegador (sin redibujar nada).
 function persist() {
@@ -70,14 +114,33 @@ function save() {
     renderCards();
 }
 
-// Cuenta controles marcados de una lista de items -> { checked, total, percent }
+// Calcula los números de un grupo de controles (una categoría, una función o todo).
+// Reglas:
+//   - Fuera de alcance: no cuenta para nada.
+//   - "No aplica": está en alcance, pero sale del total (no baja ni sube el %).
+//   - Solo "Implementado" suma al avance (Opción A: "En progreso" no suma).
+// Devuelve:
+//   done    = controles implementados
+//   total   = controles que cuentan para el % (en alcance y que aplican)
+//   percent = done / total, redondeado
+//   scope   = controles en alcance (incluye "No aplica")
+//   counts  = conteo por estado { todo, progress, done, na } (solo en alcance)
 function getStats(items) {
-    const checked = items.filter(i => auditStatus.checks[i.code]).length;
-    const percent = items.length ? Math.round((checked / items.length) * 100) : 0;
-    return { checked, total: items.length, percent };
+    const counts = { todo: 0, progress: 0, done: 0, na: 0 };
+    let scope = 0;
+
+    items.forEach(item => {
+        if (auditStatus.excluded[item.code]) return;
+        scope++;
+        counts[getStatus(item.code)]++;
+    });
+
+    const total = scope - counts.na;
+    const percent = total ? Math.round((counts.done / total) * 100) : 0;
+    return { done: counts.done, total, percent, scope, counts };
 }
 
-/* ---------- 2b. COLORES DE LAS TARJETAS ----------
+/* ---------- 3. COLORES DE LAS TARJETAS ----------
    Tailwind compila solo las clases que aparecen ESCRITAS COMPLETAS en el código.
    Una clase armada como `border-${color}-500` no se detecta y quedaría sin estilo.
    Por eso cada color se escribe completo aquí. Para agregar un color: copia un bloque. */
@@ -90,10 +153,12 @@ const COLOR_CLASSES = {
     purple: { border: 'border-purple-500', badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', text: 'text-purple-600 dark:text-purple-400', bar: 'bg-purple-500' }
 };
 
-/* ---------- 3. TARJETAS DEL TABLERO ---------- */
+/* ---------- 4. TARJETAS DEL TABLERO ---------- */
 
-// Cada función NIST es una tarjeta. La columna se decide por su avance:
-// 0% -> Backlog, 1-99% -> In Progress, 100% -> Assessed.
+// Cada función NIST es una tarjeta. La columna se decide así:
+//   100% (y con controles que cuentan)  -> Assessed
+//   algún avance o algún "En progreso"  -> In Progress
+//   nada                                -> Backlog
 function renderCards() {
     const colTodo = document.getElementById('col-todo');
     const colProgress = document.getElementById('col-progress');
@@ -105,7 +170,13 @@ function renderCards() {
     colDone.innerHTML = '';
 
     nistData.forEach(pilar => {
-        const { checked, total, percent } = getStats(pilar.categories.flatMap(c => c.items));
+        const { done, total, percent, scope, counts } = getStats(pilar.categories.flatMap(c => c.items));
+
+        // Texto de la tarjeta según la situación de la función
+        let progressLabel;
+        if (scope === 0) progressLabel = 'Fuera de alcance';          // todo excluido
+        else if (total === 0) progressLabel = 'No aplica';            // todo en alcance es "No aplica"
+        else progressLabel = `${done} / ${total} (${percent}%)`;
 
         const col = COLOR_CLASSES[pilar.color] || COLOR_CLASSES.zinc;
         const card = document.createElement('div');
@@ -124,7 +195,7 @@ function renderCards() {
             <div class="space-y-2">
                 <div class="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
                     <span class="text-zinc-400">Progress</span>
-                    <span class="${col.text}">${checked} / ${total} (${percent}%)</span>
+                    <span class="${col.text}">${progressLabel}</span>
                 </div>
                 <div class="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                     <div class="${col.bar} h-full transition-all duration-500" style="width: ${percent}%"></div>
@@ -132,15 +203,31 @@ function renderCards() {
             </div>
         `;
 
-        if (percent === 100) colDone.appendChild(card);
-        else if (percent > 0) colProgress.appendChild(card);
+        if (total > 0 && percent === 100) colDone.appendChild(card);
+        else if (percent > 0 || counts.progress > 0) colProgress.appendChild(card);
         else colTodo.appendChild(card);
     });
 
     updateGlobalProgress();
 }
 
-/* ---------- 4. VENTANA MODAL (checks y notas) ---------- */
+/* ---------- 5. VENTANA MODAL (estados, notas y alcance) ---------- */
+
+// Clases del texto de un control según su estado.
+// Implementado -> tachado y atenuado | No aplica -> solo atenuado.
+// (Se escriben completas a propósito, por Tailwind.)
+function itemTextClass(status) {
+    if (status === STATUS.DONE) return 'line-through opacity-50';
+    if (status === STATUS.NA) return 'opacity-50';
+    return '';
+}
+
+// Crea las <option> del selector, dejando marcada la del estado actual.
+function statusOptionsHtml(current) {
+    return Object.values(STATUS).map(value =>
+        `<option value="${value}" ${value === current ? 'selected' : ''}>${STATUS_LABELS[value]}</option>`
+    ).join('');
+}
 
 // Abre el detalle de una función: categorías desplegables con sus controles.
 function openPilar(id) {
@@ -154,6 +241,7 @@ function openPilar(id) {
 
     pilar.categories.forEach(cat => {
         const { percent } = getStats(cat.items);
+        const allInScope = cat.items.every(i => !auditStatus.excluded[i.code]);
 
         const section = document.createElement('div');
         section.className = 'mb-3 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden';
@@ -167,20 +255,32 @@ function openPilar(id) {
                 <span id="badge-${cat.id}" class="text-[10px] px-2 py-1 rounded-lg border ${percent === 100 ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200'}">${percent}%</span>
             </button>
             <div class="hidden p-6 space-y-6 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800">
+                <label class="flex items-center gap-4 cursor-pointer">
+                    <input type="checkbox" id="master-${cat.id}" class="w-4 h-4 rounded accent-emerald-500"
+                        ${allInScope ? 'checked' : ''}
+                        onchange="toggleCategoryScope('${cat.id}', this)">
+                    <span class="text-[10px] font-bold uppercase text-zinc-500">Incluir toda la categoría en el alcance</span>
+                </label>
                 ${cat.items.map(item => {
-                    const isChecked = auditStatus.checks[item.code];
+                    const status = getStatus(item.code);
+                    const isOut = auditStatus.excluded[item.code];
                     return `
-                    <div class="space-y-3">
-                        <label class="flex items-start gap-4 cursor-pointer group">
-                            <input type="checkbox" class="w-5 h-5 mt-1 rounded-lg accent-emerald-500"
-                                ${isChecked ? 'checked' : ''}
-                                onchange="toggleCheck('${item.code}', this)">
-                            <div class="flex-1">
-                                <p class="text-[10px] font-bold text-zinc-400">${item.code}</p>
-                                <p class="item-text text-sm font-semibold ${isChecked ? 'line-through opacity-50' : ''}">${item.text}</p>
-                            </div>
-                        </label>
+                    <div id="item-${item.code}" class="space-y-3 ${isOut ? 'opacity-50' : ''}">
+                        <div>
+                            <p class="text-[10px] font-bold text-zinc-400">${item.code}</p>
+                            <p class="item-text text-sm font-semibold ${itemTextClass(status)}">${item.text}</p>
+                        </div>
+                        <select aria-label="Estado de ${item.code}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl"
+                            onchange="setStatus('${item.code}', this.value)">
+                            ${statusOptionsHtml(status)}
+                        </select>
                         <textarea placeholder="Audit Notes..." maxlength="${MAX_NOTE_LENGTH}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl" oninput="saveNote('${item.code}', this.value)">${escapeHtml(auditStatus.notes[item.code] || '')}</textarea>
+                        <label class="flex items-center gap-4 cursor-pointer">
+                            <input type="checkbox" class="scope-box w-4 h-4 rounded accent-emerald-500"
+                                ${isOut ? '' : 'checked'}
+                                onchange="toggleScope('${item.code}', this)">
+                            <span class="text-[10px] font-bold uppercase text-zinc-500">En alcance</span>
+                        </label>
                     </div>`;
                 }).join('')}
             </div>
@@ -191,21 +291,15 @@ function openPilar(id) {
     document.getElementById('modal').classList.remove('hidden');
 }
 
-// Marca/desmarca un control. Actualiza el tachado y el % de su categoría al instante.
-function toggleCheck(code, inputEl) {
-    auditStatus.checks[code] = inputEl.checked;
+// Cambia el estado de un control desde el selector.
+// "No iniciado" no se guarda (es el valor por defecto), así el archivo queda más limpio.
+function setStatus(code, value) {
+    if (!VALID_CODES.has(code) || !VALID_STATUSES.has(value)) return;
 
-    const label = inputEl.closest('label');
-    label.querySelector('.item-text').classList.toggle('line-through', inputEl.checked);
-    label.querySelector('.item-text').classList.toggle('opacity-50', inputEl.checked);
+    if (value === STATUS.TODO) delete auditStatus.status[code];
+    else auditStatus.status[code] = value;
 
-    const cat = nistData.flatMap(p => p.categories).find(c => c.items.some(i => i.code === code));
-    const badge = document.getElementById(`badge-${cat.id}`);
-    const { percent } = getStats(cat.items);
-    badge.innerText = `${percent}%`;
-    badge.classList.toggle('bg-emerald-500', percent === 100);
-    badge.classList.toggle('text-white', percent === 100);
-
+    refreshModal();
     save();
 }
 
@@ -215,12 +309,66 @@ function saveNote(code, value) {
     persist();
 }
 
+// Refresca lo que se ve dentro de la ventana abierta, sin volver a dibujarla:
+// el % de cada categoría, la casilla maestra, el atenuado/tachado de cada control.
+function refreshModal() {
+    nistData.flatMap(p => p.categories).forEach(cat => {
+        const badge = document.getElementById(`badge-${cat.id}`);
+        if (!badge) return; // esta categoría no está en la ventana abierta
+
+        // Porcentaje de la categoría
+        const { percent } = getStats(cat.items);
+        badge.innerText = `${percent}%`;
+        badge.classList.toggle('bg-emerald-500', percent === 100);
+        badge.classList.toggle('text-white', percent === 100);
+
+        // Casilla maestra: marcada solo si TODOS los controles están en alcance
+        const master = document.getElementById(`master-${cat.id}`);
+        if (master) master.checked = cat.items.every(i => !auditStatus.excluded[i.code]);
+
+        // Cada control: atenuado si está fuera de alcance, estilo del texto según estado
+        cat.items.forEach(item => {
+            const row = document.getElementById(`item-${item.code}`);
+            if (!row) return;
+
+            const out = !!auditStatus.excluded[item.code];
+            row.classList.toggle('opacity-50', out);
+
+            const scopeBox = row.querySelector('.scope-box');
+            if (scopeBox) scopeBox.checked = !out;
+
+            const text = row.querySelector('.item-text');
+            if (text) text.className = `item-text text-sm font-semibold ${itemTextClass(getStatus(item.code))}`;
+        });
+    });
+}
+
+// Incluye o excluye UN control del alcance. checked = true significa "entra en la auditoría".
+function toggleScope(code, inputEl) {
+    if (inputEl.checked) delete auditStatus.excluded[code];
+    else auditStatus.excluded[code] = true;
+    refreshModal();
+    save();
+}
+
+// Incluye o excluye TODOS los controles de una categoría de una sola vez.
+function toggleCategoryScope(catId, inputEl) {
+    const cat = nistData.flatMap(p => p.categories).find(c => c.id === catId);
+    if (!cat) return;
+    cat.items.forEach(item => {
+        if (inputEl.checked) delete auditStatus.excluded[item.code];
+        else auditStatus.excluded[item.code] = true;
+    });
+    refreshModal();
+    save();
+}
+
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
     renderCards(); // refresca el tablero al cerrar, por si hubo notas nuevas
 }
 
-/* ---------- 5. PROGRESO GLOBAL Y TEMA ---------- */
+/* ---------- 6. PROGRESO GLOBAL Y TEMA ---------- */
 
 function updateGlobalProgress() {
     const { percent } = getStats(nistData.flatMap(p => p.categories.flatMap(c => c.items)));
@@ -235,7 +383,7 @@ function toggleTheme() {
     localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
 }
 
-/* ---------- 6. INICIO ---------- */
+/* ---------- 7. INICIO ---------- */
 
 (function init() {
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
