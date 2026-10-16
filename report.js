@@ -19,6 +19,17 @@ const REPORT_STATUS = {
     na:       { label: 'Not Applicable', css: 'status-na' }
 };
 
+// Grupos de la sección 02, en el orden en que aparecen en el reporte.
+// status  : estado que reúne el grupo (clave de REPORT_STATUS)
+// hint    : frase corta debajo del título, para quien lee el reporte
+// compact : true = fila compacta; false = tarjeta completa con nota del auditor
+const DETAIL_GROUPS = [
+    { status: 'done',     hint: 'Controls already in place',                      compact: true  },
+    { status: 'progress', hint: 'Work under way: review the auditor notes',       compact: false },
+    { status: 'todo',     hint: 'Still to be audited: evidence to request',       compact: true  },
+    { status: 'na',       hint: 'Excluded from the percentages',                  compact: true  }
+];
+
 // Texto que se muestra cuando un dato de "Audit Details" quedó vacío.
 const NOT_SPECIFIED = 'Not specified';
 
@@ -167,7 +178,8 @@ function buildChartsSection() {
         <div class="page-break"></div>`;
 }
 
-// Una tarjeta de control (código, estado, texto y notas del auditor)
+// Una tarjeta COMPLETA de control (código, estado, texto y notas del auditor).
+// Se usa en el grupo "In Progress", donde las notas son lo más importante.
 function buildControlRow(item) {
     const st = getStatus(item.code);
     const tag = REPORT_STATUS[st];
@@ -196,48 +208,69 @@ function buildControlRow(item) {
         </div>`;
 }
 
-// Un bloque por función NIST: título, porcentaje, controles y lista de fuera de alcance
-function buildPillarBlock(pilar, pilarValue) {
-    const items = pilar.categories.flatMap(c => c.items);
-    // Separamos los controles según el alcance
-    const inScopeItems = items.filter(i => !auditStatus.excluded[i.code]);
-    const outItems = items.filter(i => auditStatus.excluded[i.code]);
+// Una fila COMPACTA de control: código + texto en una línea.
+// Si el auditor dejó una nota, se muestra debajo (así no se pierde información).
+function buildCompactRow(item) {
+    const note = auditStatus.notes[item.code];
+    return `
+        <div class="p-4 bg-white rounded-2xl border border-zinc-200">
+            <div class="flex items-center gap-3">
+                <span class="font-black text-[10px] text-zinc-400">${item.code}</span>
+                <div class="flex-1">
+                    <p class="text-sm font-bold text-zinc-800 leading-snug">${item.text}</p>
+                    ${note ? `<p class="text-[11px] italic text-zinc-600 leading-relaxed">Note: "${escapeHtml(note)}"</p>` : ''}
+                </div>
+            </div>
+        </div>`;
+}
 
-    // Texto grande de la derecha: % o la razón por la que no hay %
-    let pilarLabel;
-    if (inScopeItems.length === 0) pilarLabel = 'Out of Scope';
-    else if (pilarValue === null) pilarLabel = 'Not Applicable';
-    else pilarLabel = pilarValue + '%';
+// Un grupo de la sección 02: título con cantidad + la lista de controles.
+// Si el grupo no tiene controles, muestra "None".
+function buildStatusGroup(group, items) {
+    const tag = REPORT_STATUS[group.status];
+    const rowBuilder = group.compact ? buildCompactRow : buildControlRow;
 
     return `
         <div class="mb-12">
             <div class="flex justify-between items-end mb-6 border-l-4 border-zinc-900 pl-4">
                 <div>
-                    <h3 class="text-2xl font-black uppercase tracking-tighter">${pilar.title}</h3>
-                    <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">${pilar.id} Function</p>
+                    <h3 class="text-2xl font-black uppercase tracking-tighter">${tag.label}</h3>
+                    <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">${group.hint}</p>
                 </div>
                 <div class="text-right">
-                    <span class="text-2xl font-black text-zinc-900">${pilarLabel}</span>
+                    <span class="text-2xl font-black text-zinc-900">${items.length}</span>
                 </div>
             </div>
 
-            <div class="space-y-3">
-                ${inScopeItems.map(buildControlRow).join('')}
-            </div>
+            ${items.length
+                ? `<div class="space-y-3">${items.map(rowBuilder).join('')}</div>`
+                : `<p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest italic">None</p>`}
+        </div>`;
+}
 
+// Sección 02: los controles en alcance, agrupados por estado.
+// Dentro de cada grupo se respeta el orden de las funciones NIST (el de data.js).
+function buildDetailSection(data) {
+    const inScope = data.allItems.filter(i => !auditStatus.excluded[i.code]);
+    const outItems = data.allItems.filter(i => auditStatus.excluded[i.code]);
+
+    const groupsHtml = DETAIL_GROUPS
+        .map(group => {
+            const items = inScope.filter(i => getStatus(i.code) === group.status);
+            // "Not Applicable" solo aparece si hay controles así; los otros grupos siempre.
+            if (group.status === 'na' && items.length === 0) return '';
+            return buildStatusGroup(group, items);
+        })
+        .join('');
+
+    return `
+        <section class="space-y-12">
+            <h2 class="text-sm font-black uppercase tracking-[0.4em] text-zinc-400 border-b border-zinc-100 pb-4 mb-8 italic">02. Control Status Log &amp; Evidence</h2>
+            ${groupsHtml}
             ${outItems.length ? `
             <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4 italic">
                 Out of scope (${outItems.length}): ${outItems.map(i => i.code).join(', ')}
             </p>` : ''}
-        </div>`;
-}
-
-// Sección 02: el detalle de todos los controles
-function buildDetailSection(data) {
-    return `
-        <section class="space-y-12">
-            <h2 class="text-sm font-black uppercase tracking-[0.4em] text-zinc-400 border-b border-zinc-100 pb-4 mb-8 italic">02. Detailed Control Log &amp; Evidence</h2>
-            ${nistData.map((pilar, index) => buildPillarBlock(pilar, data.values[index])).join('')}
         </section>`;
 }
 
