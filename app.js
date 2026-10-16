@@ -10,10 +10,13 @@
      3. Colores de las tarjetas
      4. Tarjetas del tablero
      5. Ventana modal (estados, notas y alcance)
-     6. Datos de la auditoría (área auditada, auditor, fecha)   <-- NUEVO
+     6. Datos de la auditoría (área auditada, auditor, fecha)
      7. Progreso global y tema
      8. Eventos (un solo "oyente" para toda la página)
      9. Inicio
+
+   NOTA: los textos que ve el usuario están en inglés.
+   Los comentarios del código se quedan en español.
    ========================================================= */
 
 const STORAGE_KEY = 'nist_audit_v2';
@@ -35,19 +38,20 @@ function escapeHtml(value) {
 
 // Los cuatro estados posibles de un control.
 // El valor (izquierda) es lo que se guarda; el texto (derecha) es lo que se ve.
-// "No iniciado" es el estado por defecto y NO se guarda (ahorra espacio).
+// "todo" (Not Started) es el estado por defecto y NO se guarda (ahorra espacio).
 const STATUS = {
-    TODO: 'todo',          // No iniciado
-    PROGRESS: 'progress',  // En progreso
-    DONE: 'done',          // Implementado
-    NA: 'na'               // No aplica
+    TODO: 'todo',          // Not Started
+    PROGRESS: 'progress',  // In Progress
+    DONE: 'done',          // Implemented
+    NA: 'na'               // Not Applicable
 };
 
+// Textos visibles de cada estado (en inglés, iguales a los del reporte).
 const STATUS_LABELS = {
-    todo: 'No iniciado',
-    progress: 'En progreso',
-    done: 'Implementado',
-    na: 'No aplica'
+    todo: 'Not Started',
+    progress: 'In Progress',
+    done: 'Implemented',
+    na: 'Not Applicable'
 };
 
 const VALID_STATUSES = new Set(Object.values(STATUS));
@@ -77,13 +81,13 @@ function cleanMetaDate(value) {
 
 // Lee lo guardado y lo "limpia": si faltan datos, está corrupto o fue manipulado,
 // se ignora lo raro en lugar de romper la app.
-//   status   = estado de cada control (solo los que NO son "No iniciado")
+//   status   = estado de cada control (solo los que NO son "Not Started")
 //   notes    = notas del auditor
 //   excluded = controles fuera del alcance (vacío = todo entra)
 //   meta     = datos de la auditoría { auditee, auditor, date } (todo opcional)
 //
 // MIGRACIÓN: la versión anterior guardaba `checks` (true = revisado).
-// Si no existe `status` pero sí `checks`, cada control marcado pasa a "Implementado".
+// Si no existe `status` pero sí `checks`, cada control marcado pasa a "Implemented".
 // Los datos guardados sin `meta` se leen como vacíos (no se rompe nada).
 function loadAudit() {
     const clean = {
@@ -128,7 +132,7 @@ function loadAudit() {
 
 let auditStatus = loadAudit();
 
-// Devuelve el estado de un control. Si no tiene ninguno guardado, es "No iniciado".
+// Devuelve el estado de un control. Si no tiene ninguno guardado, es "Not Started".
 function getStatus(code) {
     return auditStatus.status[code] || STATUS.TODO;
 }
@@ -138,7 +142,7 @@ function persist() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(auditStatus));
     } catch (err) {
-        alert('No se pudo guardar (almacenamiento lleno o bloqueado por el navegador).');
+        alert('Could not save (storage is full or blocked by the browser).');
     }
 }
 
@@ -151,13 +155,13 @@ function save() {
 // Calcula los números de un grupo de controles (una categoría, una función o todo).
 // Reglas:
 //   - Fuera de alcance: no cuenta para nada.
-//   - "No aplica": está en alcance, pero sale del total (no baja ni sube el %).
-//   - Solo "Implementado" suma al avance (Opción A: "En progreso" no suma).
+//   - "Not Applicable": está en alcance, pero sale del total (no baja ni sube el %).
+//   - Solo "Implemented" suma al avance (Opción A: "In Progress" no suma).
 // Devuelve:
 //   done    = controles implementados
 //   total   = controles que cuentan para el % (en alcance y que aplican)
 //   percent = done / total, redondeado
-//   scope   = controles en alcance (incluye "No aplica")
+//   scope   = controles en alcance (incluye "Not Applicable")
 //   counts  = conteo por estado { todo, progress, done, na } (solo en alcance)
 function getStats(items) {
     const counts = { todo: 0, progress: 0, done: 0, na: 0 };
@@ -191,7 +195,7 @@ const COLOR_CLASSES = {
 
 // Cada función NIST es una tarjeta. La columna se decide así:
 //   100% (y con controles que cuentan)  -> Assessed
-//   algún avance o algún "En progreso"  -> In Progress
+//   algún avance o algún "In Progress"  -> In Progress
 //   nada                                -> Backlog
 function renderCards() {
     const colTodo = document.getElementById('col-todo');
@@ -208,8 +212,8 @@ function renderCards() {
 
         // Texto de la tarjeta según la situación de la función
         let progressLabel;
-        if (scope === 0) progressLabel = 'Fuera de alcance';          // todo excluido
-        else if (total === 0) progressLabel = 'No aplica';            // todo en alcance es "No aplica"
+        if (scope === 0) progressLabel = 'Out of scope';              // todo excluido
+        else if (total === 0) progressLabel = 'Not applicable';       // todo en alcance es "Not Applicable"
         else progressLabel = `${done} / ${total} (${percent}%)`;
 
         const col = COLOR_CLASSES[pilar.color] || COLOR_CLASSES.zinc;
@@ -223,7 +227,7 @@ function renderCards() {
         card.innerHTML = `
             <div class="flex justify-between items-start mb-3">
                 <span class="text-[10px] font-bold ${col.badge} px-2 py-0.5 rounded uppercase">${pilar.id}</span>
-                <button data-action="open-pilar" data-id="${escapeHtml(pilar.id)}" aria-label="Abrir ${escapeHtml(pilar.title)}" class="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-xl hover:text-blue-600 transition-colors">
+                <button data-action="open-pilar" data-id="${escapeHtml(pilar.id)}" aria-label="Open ${escapeHtml(pilar.title)}" class="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-xl hover:text-blue-600 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                 </button>
             </div>
@@ -251,7 +255,7 @@ function renderCards() {
 /* ---------- 5. VENTANA MODAL (estados, notas y alcance) ---------- */
 
 // Clases del texto de un control según su estado.
-// Implementado -> tachado y atenuado | No aplica -> solo atenuado.
+// Implemented -> tachado y atenuado | Not Applicable -> solo atenuado.
 // (Se escriben completas a propósito, por Tailwind.)
 function itemTextClass(status) {
     if (status === STATUS.DONE) return 'line-through opacity-50';
@@ -274,7 +278,7 @@ function openPilar(id) {
     if (!pilar) return;
 
     document.getElementById('modal-title').innerText = pilar.title;
-    document.getElementById('modal-cat-id').innerText = `Pilar ${pilar.id.toUpperCase()}`;
+    document.getElementById('modal-cat-id').innerText = `Function ${pilar.id.toUpperCase()}`;
     const content = document.getElementById('modal-content');
     content.innerHTML = '';
 
@@ -298,7 +302,7 @@ function openPilar(id) {
                     <input type="checkbox" id="master-${cat.id}" class="w-4 h-4 rounded accent-emerald-500"
                         ${allInScope ? 'checked' : ''}
                         data-action="toggle-category-scope" data-cat="${escapeHtml(cat.id)}">
-                    <span class="text-[10px] font-bold uppercase text-zinc-500">Incluir toda la categoría en el alcance</span>
+                    <span class="text-[10px] font-bold uppercase text-zinc-500">Include whole category in scope</span>
                 </label>
                 ${cat.items.map(item => {
                     const status = getStatus(item.code);
@@ -310,7 +314,7 @@ function openPilar(id) {
                             <p class="text-[10px] font-bold text-zinc-400">${item.code}</p>
                             <p class="item-text text-sm font-semibold ${itemTextClass(status)}">${item.text}</p>
                         </div>
-                        <select aria-label="Estado de ${code}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl"
+                        <select aria-label="Status of ${code}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl"
                             data-action="set-status" data-code="${code}">
                             ${statusOptionsHtml(status)}
                         </select>
@@ -319,7 +323,7 @@ function openPilar(id) {
                             <input type="checkbox" class="scope-box w-4 h-4 rounded accent-emerald-500"
                                 ${isOut ? '' : 'checked'}
                                 data-action="toggle-scope" data-code="${code}">
-                            <span class="text-[10px] font-bold uppercase text-zinc-500">En alcance</span>
+                            <span class="text-[10px] font-bold uppercase text-zinc-500">In scope</span>
                         </label>
                     </div>`;
                 }).join('')}
@@ -332,7 +336,7 @@ function openPilar(id) {
 }
 
 // Cambia el estado de un control desde el selector.
-// "No iniciado" no se guarda (es el valor por defecto), así el archivo queda más limpio.
+// "Not Started" no se guarda (es el valor por defecto), así el archivo queda más limpio.
 function setStatus(code, value) {
     if (!VALID_CODES.has(code) || !VALID_STATUSES.has(value)) return;
 
@@ -480,8 +484,8 @@ const CLICK_ACTIONS = {
     'toggle-category': el => el.nextElementSibling.classList.toggle('hidden'),
     'close-modal':     () => closeModal(),
     'toggle-theme':    () => toggleTheme(),
-    'open-meta':       () => openMeta(),      //  abre "Datos de la auditoría"
-    'close-meta':      () => closeMeta(),     //  cierra "Datos de la auditoría"
+    'open-meta':       () => openMeta(),      //  abre "Audit Details"
+    'close-meta':      () => closeMeta(),     //  cierra "Audit Details"
     'export-report':   () => generateProfessionalReport(),
     'close-report':    () => closeReport(),   //  vuelve al tablero
     'print-report':    () => printReport()   //  imprime / guarda como PDF
