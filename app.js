@@ -410,7 +410,9 @@ const CLICK_ACTIONS = {
     'toggle-category': el => el.nextElementSibling.classList.toggle('hidden'),
     'close-modal':     () => closeModal(),
     'toggle-theme':    () => toggleTheme(),
-    'export-report':   () => generateProfessionalReport()
+    'export-report':   () => generateProfessionalReport(),
+    'close-report':    () => closeReport(),   //  vuelve al tablero
+    'print-report':    () => printReport()   //  imprime / guarda como PDF
 };
 
 // Al cambiar un valor (selectores y casillas)
