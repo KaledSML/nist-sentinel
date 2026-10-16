@@ -10,13 +10,15 @@
      3. Colores de las tarjetas
      4. Tarjetas del tablero
      5. Ventana modal (estados, notas y alcance)
-     6. Progreso global y tema
-     7. Eventos (un solo "oyente" para toda la página)
-     8. Inicio
+     6. Datos de la auditoría (área auditada, auditor, fecha)   <-- NUEVO
+     7. Progreso global y tema
+     8. Eventos (un solo "oyente" para toda la página)
+     9. Inicio
    ========================================================= */
 
 const STORAGE_KEY = 'nist_audit_v2';
 const MAX_NOTE_LENGTH = 5000;
+const MAX_META_LENGTH = 200;   // largo máximo de "área auditada" y "auditor"
 
 /* ---------- 1. UTILIDADES DE SEGURIDAD ---------- */
 
@@ -55,16 +57,39 @@ const VALID_CODES = new Set(
     nistData.flatMap(p => p.categories.flatMap(c => c.items.map(i => i.code)))
 );
 
+// Campos de texto permitidos en `meta` (área auditada y auditor).
+// La fecha se valida aparte porque tiene un formato especial.
+const META_TEXT_FIELDS = ['auditee', 'auditor'];
+
+// Limpia un texto de `meta`: solo acepta texto, quita espacios sobrantes
+// y lo corta al largo máximo. Si no es texto, devuelve vacío.
+function cleanMetaText(value) {
+    return typeof value === 'string' ? value.trim().slice(0, MAX_META_LENGTH) : '';
+}
+
+// Valida una fecha en formato AAAA-MM-DD. Devuelve la fecha si es real
+// (por ejemplo rechaza 2026-02-31) o '' si no lo es.
+function cleanMetaDate(value) {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
+    const d = new Date(value + 'T00:00:00Z');
+    return !isNaN(d) && d.toISOString().slice(0, 10) === value ? value : '';
+}
+
 // Lee lo guardado y lo "limpia": si faltan datos, está corrupto o fue manipulado,
 // se ignora lo raro en lugar de romper la app.
 //   status   = estado de cada control (solo los que NO son "No iniciado")
 //   notes    = notas del auditor
 //   excluded = controles fuera del alcance (vacío = todo entra)
+//   meta     = datos de la auditoría { auditee, auditor, date } (todo opcional)
 //
 // MIGRACIÓN: la versión anterior guardaba `checks` (true = revisado).
 // Si no existe `status` pero sí `checks`, cada control marcado pasa a "Implementado".
+// Los datos guardados sin `meta` se leen como vacíos (no se rompe nada).
 function loadAudit() {
-    const clean = { status: {}, notes: {}, excluded: {} };
+    const clean = {
+        status: {}, notes: {}, excluded: {},
+        meta: { auditee: '', auditor: '', date: '' }
+    };
     try {
         const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
         if (!raw || typeof raw !== 'object') return clean;
@@ -87,6 +112,14 @@ function loadAudit() {
                 clean.notes[code] = raw.notes[code].slice(0, MAX_NOTE_LENGTH);
             }
         });
+
+        // Datos de la auditoría (si no existen, se quedan vacíos)
+        if (raw.meta && typeof raw.meta === 'object') {
+            META_TEXT_FIELDS.forEach(field => {
+                clean.meta[field] = cleanMetaText(raw.meta[field]);
+            });
+            clean.meta.date = cleanMetaDate(raw.meta.date);
+        }
     } catch (err) {
         console.warn('Datos guardados ilegibles, se inicia vacío:', err);
     }
@@ -186,7 +219,7 @@ function renderCards() {
 
         // El botón NO lleva código dentro: solo una etiqueta (data-action) que dice
         // qué hacer y un dato (data-id) que dice con qué función. El "oyente" de la
-        // sección 7 se encarga del resto.
+        // sección 8 se encarga del resto.
         card.innerHTML = `
             <div class="flex justify-between items-start mb-3">
                 <span class="text-[10px] font-bold ${col.badge} px-2 py-0.5 rounded uppercase">${pilar.id}</span>
@@ -377,7 +410,44 @@ function closeModal() {
     renderCards(); // refresca el tablero al cerrar, por si hubo notas nuevas
 }
 
-/* ---------- 6. PROGRESO GLOBAL Y TEMA ---------- */
+/* ---------- 6. DATOS DE LA AUDITORÍA (área auditada, auditor, fecha) ----------
+   Una ventanita con tres campos. Todo es opcional.
+   Los valores se guardan en auditStatus.meta y el reporte los leerá desde ahí.
+   Cada campo del HTML lleva  data-action="save-meta"  y  data-field="auditee|auditor|date".
+   IDs que debe tener el HTML:  meta-modal, meta-auditee, meta-auditor, meta-date. */
+
+// Abre la ventanita y rellena los campos con lo que ya está guardado.
+function openMeta() {
+    const modal = document.getElementById('meta-modal');
+    if (!modal) return;
+
+    ['auditee', 'auditor', 'date'].forEach(field => {
+        const input = document.getElementById(`meta-${field}`);
+        if (input) input.value = auditStatus.meta[field];
+    });
+    modal.classList.remove('hidden');
+}
+
+function closeMeta() {
+    const modal = document.getElementById('meta-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Guarda un campo de los datos de la auditoría mientras se escribe.
+// Valida igual que loadAudit(): solo campos conocidos, texto limpio y fecha real.
+function saveMeta(field, value) {
+    if (field === 'date') {
+        auditStatus.meta.date = cleanMetaDate(value);
+    } else if (META_TEXT_FIELDS.includes(field)) {
+        // Aquí NO se usa trim(): si no, no se podría escribir un espacio entre palabras.
+        auditStatus.meta[field] = String(value).slice(0, MAX_META_LENGTH);
+    } else {
+        return; // campo desconocido: se ignora
+    }
+    persist();
+}
+
+/* ---------- 7. PROGRESO GLOBAL Y TEMA ---------- */
 
 function updateGlobalProgress() {
     const { percent } = getStats(nistData.flatMap(p => p.categories.flatMap(c => c.items)));
@@ -392,7 +462,7 @@ function toggleTheme() {
     localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
 }
 
-/* ---------- 7. EVENTOS (un solo "oyente" para toda la página) ----------
+/* ---------- 8. EVENTOS (un solo "oyente" para toda la página) ----------
    En vez de poner onclick="..." dentro de cada botón, cada elemento lleva una etiqueta
    data-action="nombre". Aquí hay una tabla que dice qué función corresponde a cada nombre,
    y UN solo oyente por tipo de evento que busca la etiqueta y llama a la función.
@@ -410,6 +480,8 @@ const CLICK_ACTIONS = {
     'toggle-category': el => el.nextElementSibling.classList.toggle('hidden'),
     'close-modal':     () => closeModal(),
     'toggle-theme':    () => toggleTheme(),
+    'open-meta':       () => openMeta(),      //  abre "Datos de la auditoría"
+    'close-meta':      () => closeMeta(),     //  cierra "Datos de la auditoría"
     'export-report':   () => generateProfessionalReport(),
     'close-report':    () => closeReport(),   //  vuelve al tablero
     'print-report':    () => printReport()   //  imprime / guarda como PDF
@@ -424,7 +496,8 @@ const CHANGE_ACTIONS = {
 
 // Al escribir (cajas de texto)
 const INPUT_ACTIONS = {
-    'save-note': el => saveNote(el.dataset.code, el.value)
+    'save-note': el => saveNote(el.dataset.code, el.value),
+    'save-meta': el => saveMeta(el.dataset.field, el.value)
 };
 
 // Crea un oyente que busca la etiqueta data-action más cercana al elemento tocado.
@@ -437,7 +510,7 @@ function listenFor(eventName, actions) {
     });
 }
 
-/* ---------- 8. INICIO ---------- */
+/* ---------- 9. INICIO ---------- */
 
 (function init() {
     if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
