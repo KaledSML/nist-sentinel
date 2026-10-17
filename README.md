@@ -109,7 +109,6 @@ No install step is needed. The compiled `tailwind.css` is already in the repo. T
 
 - [ ] Remove inline styles so the CSP can drop `'unsafe-inline'` from `style-src`.
 - [ ] Record the version and SHA-256 hash of each file in `vendor/`.
-- [ ] Add a `SECURITY.md` with a vulnerability reporting process.
 - [ ] Session backup: export and import the audit as JSON, with strict schema validation.
 - [ ] Optional encrypted storage and export (passphrase-based, Web Crypto API).
 - [ ] Maturity levels per control.
