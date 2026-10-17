@@ -60,3 +60,19 @@ Then reload `index.html` in your browser.
 - **`custom.css` and `report.css` are plain CSS.** Editing them needs no rebuild.
 - **Do not commit the executable.** It is a large binary and anyone can download it from the official releases. Add its name to `.gitignore`, for example `tailwindcss-*`.
 - **Don't edit `tailwind.css` by hand.** Your changes would be lost the next time it is generated.
+
+## Checksum of the executable used
+
+The current `tailwind.css` was built with this file:
+
+| File | Version | SHA-256 |
+|---|---|---|
+| `tailwindcss-windows-x64.exe` | 3.4.17 | `67F1C5E3F5A03406A7BF5BADF5ADA09B79F3AE78EC43450C15F7E983068DA346` |
+
+This is the hash of the copy used by the maintainer. To check your own download, run:
+
+```powershell
+Get-FileHash .\tailwindcss-windows-x64.exe
+```
+
+On macOS / Linux use `shasum -a 256 tailwindcss-*`. The hash only applies to the Windows build above. If it differs, the file is not the same build (or it was modified).
