@@ -57,7 +57,7 @@ The board, the PDF report and the Excel file all use the same calculation, so th
 ## 🔒 Privacy and data handling
 
 - **No backend, no accounts, no analytics, no network requests.** Everything runs in your browser.
-- **Fully local:** all libraries (Chart.js, SortableJS, ExcelJS) are bundled in `vendor/`, Tailwind CSS is compiled into `tailwind.css`, and the interface uses system fonts. Nothing is loaded from a CDN, so the app works offline once the page is open.
+- **Fully local:** all libraries (Chart.js, SortableJS, ExcelJS) are bundled in `vendor/` (versions, sources and SHA-256 hashes in [`vendor/README.md`](vendor/README.md)), Tailwind CSS is compiled into `tailwind.css`, and the interface uses system fonts. Nothing is loaded from a CDN, so the app works offline once the page is open.
 - **Where data lives:** progress, scope, notes and audit details are saved in your browser's `LocalStorage`, on your device only.
 - **Not encrypted:** `LocalStorage` is plain text. Anyone with access to your browser profile can read it. Use a private device and clear the data when you finish a sensitive audit.
 - **Treat exports as sensitive:** the PDF and Excel files contain your notes in plain text. Store and share them accordingly.
@@ -66,14 +66,14 @@ The board, the PDF report and the Excel file all use the same calculation, so th
 
 ## 🧱 Security measures
 
-- **Content Security Policy** (via `<meta>`): scripts can only come from the site's own files (`script-src 'self'`), and plugins are blocked (`object-src 'none'`).
-- **No inline event handlers.** Buttons use `data-action` attributes and a single event listener, which is what makes a strict script policy possible.
+- **Strict Content Security Policy** (via `<meta>`): everything is blocked by default (`default-src 'none'`). Scripts and styles can only come from the site's own files, with no inline scripts or inline styles (`script-src 'self'`, `style-src 'self'`). The page cannot send data anywhere (`connect-src 'none'`), and plugins, forms and `<base>` tags are blocked.
+- **No inline event handlers or inline styles.** Buttons use `data-action` attributes and a single event listener, and dynamic sizes (like progress bars) are set from JavaScript, which is what makes the strict policy possible.
 - **Validated on load:** stored data is filtered against the list of valid control codes, an allow-list of statuses, maximum text lengths and a strict date check. Anything unexpected is ignored.
-- **Escaped output:** notes and audit details are HTML-escaped before being rendered in the app and in the report.
+- **Escaped output:** every piece of text inserted into the page, including notes, audit details and framework data, is HTML-escaped before being rendered in the app and in the report.
 - **Spreadsheet formula protection:** in the Excel export, user-written text starting with `=`, `+`, `-` or `@` gets a leading apostrophe. This is a defense in depth; ExcelJS already stores these values as text. The apostrophe is visible in the cell.
 - **External links** use `rel="noopener noreferrer"`.
 
-Known gaps are listed in the roadmap below. To report a vulnerability, please open an issue or contact me through my GitHub profile.
+To report a vulnerability, see [SECURITY.md](SECURITY.md). Known gaps are listed in the roadmap below.
 
 ---
 
@@ -107,11 +107,10 @@ No install step is needed. The compiled `tailwind.css` is already in the repo. T
 
 ## 🧭 Known limitations and roadmap
 
-- [ ] Remove inline styles so the CSP can drop `'unsafe-inline'` from `style-src`.
 - [ ] Session backup: export and import the audit as JSON, with strict schema validation.
 - [ ] Optional encrypted storage and export (passphrase-based, Web Crypto API).
 - [ ] Maturity levels per control.
-- [ ] Make drag-and-drop on the board change statuses (today the board groups cards automatically, so dragging is visual only).
+- [ ] Drag-and-drop on the board that changes statuses (today the board groups cards automatically, so dragging is disabled).
 - [ ] Automated tests.
 - [ ] `frame-ancestors` protection (not possible through `<meta>` on GitHub Pages).
 
