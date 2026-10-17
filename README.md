@@ -23,9 +23,13 @@
 
 ## 💡 Why I built it
 
-During my internship I worked on an audit under **NERC CIP** at an electric utility, and saw how framework-based audits were tracked in spreadsheets: hard to see progress at a glance, hard to share, and easy to lose context. I wanted to work with **NIST CSF**, one of the most widely requested frameworks in the industry, so I built Sentinel to turn it into a visual checklist that keeps the audit data on the auditor's own machine.
+During my internship I worked on an audit under **NERC CIP** at an electric utility, and I kept seeing the same thing: framework-based audits living in spreadsheets. Hard to see progress at a glance, hard to share, and very easy to lose context.
 
-It started as a plain checklist, but it felt cluttered, so I redesigned it as a board view and have kept improving it step by step since then.
+I wanted to learn **NIST CSF**, since it's one of the frameworks the industry asks for everywhere, so I turned it into a tool. I'm a Python person at heart, so I picked vanilla JavaScript as the closest thing I could enjoy, typed every control into `data.js`, and made a checklist.
+
+The checklist looked messy, so I turned it into a board. Then I kept adding things. Then a few more.
+
+> 🐯 **Author's note:** this started as "just a checklist" and got completely out of hand. I'm not sorry. It was fun, and I learned a lot along the way.
 
 ---
 
