@@ -40,8 +40,7 @@ Only the latest version on the `main` branch (and the live demo) receives fixes.
 
 ## Known limitations
 
-These are already tracked in the README roadmap:
+These are tracked in the README roadmap:
 
-- The CSP still allows `'unsafe-inline'` for styles.
 - Stored notes and exports are not encrypted.
-- Files in `vendor/` do not yet have published version and hash records.
+- `frame-ancestors` (anti-clickjacking) can't be set through `<meta>` on GitHub Pages.
