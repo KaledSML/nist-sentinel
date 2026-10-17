@@ -23,7 +23,9 @@
 
 ## 💡 Why I built it
 
-During my internal audit internship I saw how framework-based audits were tracked in spreadsheets: hard to see progress at a glance, hard to share, and easy to lose context. I built Sentinel to explore a lighter alternative that keeps the audit data on the auditor's own machine.
+During my internship I worked on an audit under **NERC CIP** at an electric utility, and saw how framework-based audits were tracked in spreadsheets: hard to see progress at a glance, hard to share, and easy to lose context. I wanted to work with **NIST CSF**, one of the most widely requested frameworks in the industry, so I built Sentinel to turn it into a visual checklist that keeps the audit data on the auditor's own machine.
+
+It started as a plain checklist, but it felt cluttered, so I redesigned it as a board view and have kept improving it step by step since then.
 
 ---
 
