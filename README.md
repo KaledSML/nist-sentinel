@@ -101,7 +101,7 @@ cd nist-sentinel
 # open index.html in a modern browser
 ```
 
-No install step is needed. The compiled `tailwind.css` is already in the repo. To rebuild it after changing styles, see `LEEME-BUILD.txt`.
+No install step is needed. The compiled `tailwind.css` is already in the repo. To rebuild it after changing styles, see [BUILD.md](BUILD.md).
 
 ---
 
