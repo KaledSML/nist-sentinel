@@ -4,6 +4,7 @@
    Este archivo se carga DESPUÉS de:
      - data.js    -> define la lista `nistData` (los controles NIST)
      - report.js  -> define `generateProfessionalReport()`
+     - excel.js   -> define `downloadExcel()`
    Orden de las secciones:
      1. Utilidades de seguridad
      2. Estados y carga/guardado
@@ -17,6 +18,12 @@
 
    NOTA: los textos que ve el usuario están en inglés.
    Los comentarios del código se quedan en español.
+
+   Regla de seguridad: TODO texto que se inserta con innerHTML pasa por
+   escapeHtml, venga de lo que escribió la persona o de data.js. Y los
+   estilos dinámicos (como el ancho de las barras) se asignan por JavaScript
+   (elemento.style.width), nunca con style="..." escrito en el HTML:
+   así la CSP puede prohibir estilos en línea.
    ========================================================= */
 
 const STORAGE_KEY = 'nist_audit_v2';
@@ -25,9 +32,9 @@ const MAX_META_LENGTH = 200;   // largo máximo de "área auditada" y "auditor"
 
 /* ---------- 1. UTILIDADES DE SEGURIDAD ---------- */
 
-// Convierte texto del usuario en texto "inofensivo" para HTML.
+// Convierte texto en texto "inofensivo" para HTML.
 // Sin esto, una nota como  </textarea><img src=x onerror=...>  se ejecutaría
-// como código. Se usa SIEMPRE que un texto escrito por alguien se pinta con innerHTML.
+// como código. Se usa SIEMPRE que un texto se pinta con innerHTML.
 function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, ch => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -79,8 +86,10 @@ function cleanMetaDate(value) {
     return !isNaN(d) && d.toISOString().slice(0, 10) === value ? value : '';
 }
 
-// Lee lo guardado y lo "limpia": si faltan datos, está corrupto o fue manipulado,
-// se ignora lo raro en lugar de romper la app.
+// EL FILTRO ÚNICO: recibe datos "crudos" (de localStorage o, algún día, de un
+// archivo importado) y devuelve una copia limpia. Si faltan datos, están corruptos
+// o fueron manipulados, se ignora lo raro en lugar de romper la app.
+// Cualquier dato que entre a la app debe pasar por aquí.
 //   status   = estado de cada control (solo los que NO son "Not Started")
 //   notes    = notas del auditor
 //   excluded = controles fuera del alcance (vacío = todo entra)
@@ -89,45 +98,50 @@ function cleanMetaDate(value) {
 // MIGRACIÓN: la versión anterior guardaba `checks` (true = revisado).
 // Si no existe `status` pero sí `checks`, cada control marcado pasa a "Implemented".
 // Los datos guardados sin `meta` se leen como vacíos (no se rompe nada).
-function loadAudit() {
+function sanitizeAudit(raw) {
     const clean = {
         status: {}, notes: {}, excluded: {},
         meta: { auditee: '', auditor: '', date: '' }
     };
-    try {
-        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        if (!raw || typeof raw !== 'object') return clean;
-        const isOldFormat = !raw.status && raw.checks;
+    if (!raw || typeof raw !== 'object') return clean;
+    const isOldFormat = !raw.status && raw.checks;
 
-        VALID_CODES.forEach(code => {
-            // Estado (formato nuevo)
-            const st = raw.status && raw.status[code];
-            if (VALID_STATUSES.has(st) && st !== STATUS.TODO) {
-                clean.status[code] = st;
-            }
-            // Estado (migración desde el formato anterior)
-            else if (isOldFormat && raw.checks[code] === true) {
-                clean.status[code] = STATUS.DONE;
-            }
-
-            if (raw.excluded && raw.excluded[code] === true) clean.excluded[code] = true;
-
-            if (raw.notes && typeof raw.notes[code] === 'string') {
-                clean.notes[code] = raw.notes[code].slice(0, MAX_NOTE_LENGTH);
-            }
-        });
-
-        // Datos de la auditoría (si no existen, se quedan vacíos)
-        if (raw.meta && typeof raw.meta === 'object') {
-            META_TEXT_FIELDS.forEach(field => {
-                clean.meta[field] = cleanMetaText(raw.meta[field]);
-            });
-            clean.meta.date = cleanMetaDate(raw.meta.date);
+    VALID_CODES.forEach(code => {
+        // Estado (formato nuevo)
+        const st = raw.status && raw.status[code];
+        if (VALID_STATUSES.has(st) && st !== STATUS.TODO) {
+            clean.status[code] = st;
         }
-    } catch (err) {
-        console.warn('Datos guardados ilegibles, se inicia vacío:', err);
+        // Estado (migración desde el formato anterior)
+        else if (isOldFormat && raw.checks[code] === true) {
+            clean.status[code] = STATUS.DONE;
+        }
+
+        if (raw.excluded && raw.excluded[code] === true) clean.excluded[code] = true;
+
+        if (raw.notes && typeof raw.notes[code] === 'string') {
+            clean.notes[code] = raw.notes[code].slice(0, MAX_NOTE_LENGTH);
+        }
+    });
+
+    // Datos de la auditoría (si no existen, se quedan vacíos)
+    if (raw.meta && typeof raw.meta === 'object') {
+        META_TEXT_FIELDS.forEach(field => {
+            clean.meta[field] = cleanMetaText(raw.meta[field]);
+        });
+        clean.meta.date = cleanMetaDate(raw.meta.date);
     }
     return clean;
+}
+
+// Lee lo guardado en el navegador y lo pasa por el filtro.
+function loadAudit() {
+    try {
+        return sanitizeAudit(JSON.parse(localStorage.getItem(STORAGE_KEY)));
+    } catch (err) {
+        console.warn('Datos guardados ilegibles, se inicia vacío:', err);
+        return sanitizeAudit(null);
+    }
 }
 
 let auditStatus = loadAudit();
@@ -138,11 +152,17 @@ function getStatus(code) {
 }
 
 // Guarda en el navegador (sin redibujar nada).
+// El aviso de error sale UNA sola vez: como se guarda en cada tecla,
+// si el almacenamiento está bloqueado el aviso saldría sin parar.
+let storageWarned = false;
 function persist() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(auditStatus));
     } catch (err) {
-        alert('Could not save (storage is full or blocked by the browser).');
+        if (!storageWarned) {
+            storageWarned = true;
+            alert('Could not save (storage is full or blocked by the browser). Your changes will be lost when you close this page.');
+        }
     }
 }
 
@@ -224,25 +244,29 @@ function renderCards() {
         // El botón NO lleva código dentro: solo una etiqueta (data-action) que dice
         // qué hacer y un dato (data-id) que dice con qué función. El "oyente" de la
         // sección 8 se encarga del resto.
+        // La barra de progreso NO lleva style="...": su ancho se asigna abajo, por JS.
         card.innerHTML = `
             <div class="flex justify-between items-start mb-3">
-                <span class="text-[10px] font-bold ${col.badge} px-2 py-0.5 rounded uppercase">${pilar.id}</span>
+                <span class="text-[10px] font-bold ${col.badge} px-2 py-0.5 rounded uppercase">${escapeHtml(pilar.id)}</span>
                 <button data-action="open-pilar" data-id="${escapeHtml(pilar.id)}" aria-label="Open ${escapeHtml(pilar.title)}" class="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-xl hover:text-blue-600 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                 </button>
             </div>
-            <h4 class="font-bold text-sm uppercase">${pilar.title}</h4>
-            <p class="text-[11px] text-zinc-500 mt-1 mb-4">${pilar.desc}</p>
+            <h4 class="font-bold text-sm uppercase">${escapeHtml(pilar.title)}</h4>
+            <p class="text-[11px] text-zinc-500 mt-1 mb-4">${escapeHtml(pilar.desc)}</p>
             <div class="space-y-2">
                 <div class="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
                     <span class="text-zinc-400">Progress</span>
-                    <span class="${col.text}">${progressLabel}</span>
+                    <span class="${col.text}">${escapeHtml(progressLabel)}</span>
                 </div>
                 <div class="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                    <div class="${col.bar} h-full transition-all duration-500" style="width: ${percent}%"></div>
+                    <div data-bar class="${col.bar} h-full transition-all duration-500"></div>
                 </div>
             </div>
         `;
+
+        // Ancho de la barra, asignado por JavaScript (permitido por una CSP estricta)
+        card.querySelector('[data-bar]').style.width = `${percent}%`;
 
         if (total > 0 && percent === 100) colDone.appendChild(card);
         else if (percent > 0 || counts.progress > 0) colProgress.appendChild(card);
@@ -266,7 +290,7 @@ function itemTextClass(status) {
 // Crea las <option> del selector, dejando marcada la del estado actual.
 function statusOptionsHtml(current) {
     return Object.values(STATUS).map(value =>
-        `<option value="${value}" ${value === current ? 'selected' : ''}>${STATUS_LABELS[value]}</option>`
+        `<option value="${escapeHtml(value)}" ${value === current ? 'selected' : ''}>${escapeHtml(STATUS_LABELS[value])}</option>`
     ).join('');
 }
 
@@ -285,6 +309,7 @@ function openPilar(id) {
     pilar.categories.forEach(cat => {
         const { percent } = getStats(cat.items);
         const allInScope = cat.items.every(i => !auditStatus.excluded[i.code]);
+        const catId = escapeHtml(cat.id);
 
         const section = document.createElement('div');
         section.className = 'mb-3 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden';
@@ -292,16 +317,16 @@ function openPilar(id) {
             <button data-action="toggle-category"
                 class="w-full flex justify-between items-center p-4 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 transition-all">
                 <div class="text-left">
-                    <p class="text-[9px] font-black text-blue-600 uppercase tracking-widest">${cat.id}</p>
-                    <h5 class="text-sm font-bold text-zinc-800 dark:text-zinc-100">${cat.name}</h5>
+                    <p class="text-[9px] font-black text-blue-600 uppercase tracking-widest">${catId}</p>
+                    <h5 class="text-sm font-bold text-zinc-800 dark:text-zinc-100">${escapeHtml(cat.name)}</h5>
                 </div>
-                <span id="badge-${cat.id}" class="text-[10px] px-2 py-1 rounded-lg border ${percent === 100 ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200'}">${percent}%</span>
+                <span id="badge-${catId}" class="text-[10px] px-2 py-1 rounded-lg border ${percent === 100 ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200'}">${percent}%</span>
             </button>
             <div class="hidden p-6 space-y-6 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800">
                 <label class="flex items-center gap-4 cursor-pointer">
-                    <input type="checkbox" id="master-${cat.id}" class="w-4 h-4 rounded accent-emerald-500"
+                    <input type="checkbox" id="master-${catId}" class="w-4 h-4 rounded accent-emerald-500"
                         ${allInScope ? 'checked' : ''}
-                        data-action="toggle-category-scope" data-cat="${escapeHtml(cat.id)}">
+                        data-action="toggle-category-scope" data-cat="${catId}">
                     <span class="text-[10px] font-bold uppercase text-zinc-500">Include whole category in scope</span>
                 </label>
                 ${cat.items.map(item => {
@@ -309,10 +334,10 @@ function openPilar(id) {
                     const isOut = auditStatus.excluded[item.code];
                     const code = escapeHtml(item.code);
                     return `
-                    <div id="item-${item.code}" class="space-y-3 ${isOut ? 'opacity-50' : ''}">
+                    <div id="item-${code}" class="space-y-3 ${isOut ? 'opacity-50' : ''}">
                         <div>
-                            <p class="text-[10px] font-bold text-zinc-400">${item.code}</p>
-                            <p class="item-text text-sm font-semibold ${itemTextClass(status)}">${item.text}</p>
+                            <p class="text-[10px] font-bold text-zinc-400">${code}</p>
+                            <p class="item-text text-sm font-semibold ${itemTextClass(status)}">${escapeHtml(item.text)}</p>
                         </div>
                         <select aria-label="Status of ${code}" class="w-full p-3 text-xs bg-zinc-50 dark:bg-zinc-800 border rounded-xl"
                             data-action="set-status" data-code="${code}">
@@ -438,7 +463,7 @@ function closeMeta() {
 }
 
 // Guarda un campo de los datos de la auditoría mientras se escribe.
-// Valida igual que loadAudit(): solo campos conocidos, texto limpio y fecha real.
+// Valida igual que sanitizeAudit(): solo campos conocidos, texto limpio y fecha real.
 function saveMeta(field, value) {
     if (field === 'date') {
         auditStatus.meta.date = cleanMetaDate(value);
@@ -463,7 +488,11 @@ function updateGlobalProgress() {
 
 function toggleTheme() {
     document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    try {
+        localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    } catch (err) {
+        // Sin almacenamiento: el tema cambia igual, pero solo dura esta sesión.
+    }
 }
 
 /* ---------- 8. EVENTOS (un solo "oyente" para toda la página) ----------
@@ -484,12 +513,12 @@ const CLICK_ACTIONS = {
     'toggle-category': el => el.nextElementSibling.classList.toggle('hidden'),
     'close-modal':     () => closeModal(),
     'toggle-theme':    () => toggleTheme(),
-    'open-meta':       () => openMeta(),      //  abre "Audit Details"
-    'close-meta':      () => closeMeta(),     //  cierra "Audit Details"
+    'open-meta':       () => openMeta(),         // abre "Audit Details"
+    'close-meta':      () => closeMeta(),        // cierra "Audit Details"
     'export-report':   () => generateProfessionalReport(),
-    'close-report':    () => closeReport(),   //  vuelve al tablero
-    'print-report':    () => printReport(),   //  imprime / guarda como PDF
-    'export-excel':    () => downloadExcel() //  NUEVO 5c: descarga el checklist en Excel
+    'close-report':    () => closeReport(),      // vuelve al tablero
+    'print-report':    () => printReport(),      // imprime / guarda como PDF
+    'export-excel':    () => downloadExcel()     // descarga el checklist en Excel
 };
 
 // Al cambiar un valor (selectores y casillas)
@@ -518,18 +547,26 @@ function listenFor(eventName, actions) {
 /* ---------- 9. INICIO ---------- */
 
 (function init() {
-    if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+    // Tema guardado (si el navegador bloquea el almacenamiento, se queda en claro)
+    try {
+        if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+    } catch (err) {
+        // sin almacenamiento: tema claro por defecto
+    }
 
     listenFor('click', CLICK_ACTIONS);
     listenFor('change', CHANGE_ACTIONS);
     listenFor('input', INPUT_ACTIONS);
 
-    // Arrastrar tarjetas (SortableJS). OJO: hoy arrastrar es solo visual,
-    // porque la columna se calcula por avance y se recalcula al guardar.
+    // Arrastrar tarjetas (SortableJS). Está DESACTIVADO a propósito: la columna de
+    // cada tarjeta se calcula por avance y se recalcula al guardar, así que arrastrar
+    // no cambiaría nada y confundiría. Para activarlo de verdad hay que hacer que
+    // soltar una tarjeta cambie los estados de sus controles; entonces se quita `disabled`.
     if (typeof Sortable !== 'undefined') {
         ['col-todo', 'col-progress', 'col-done'].forEach(id => {
             new Sortable(document.getElementById(id), {
-                group: 'nist-kanban', animation: 300, ghostClass: 'bg-blue-500/10'
+                group: 'nist-kanban', animation: 300, ghostClass: 'bg-blue-500/10',
+                disabled: true
             });
         });
     }
