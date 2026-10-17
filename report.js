@@ -6,6 +6,10 @@
 //  El reporte se dibuja DENTRO de la página (#report-content), sin ventana emergente
 //  y sin scripts internos, para poder activar la CSP.
 //  Los estilos propios del reporte viven en report.css.
+//
+//  Regla de seguridad: TODO texto que se inserta en el HTML pasa por escapeHtml,
+//  venga de lo que escribió la persona o de data.js (así, si algún día los datos
+//  vienen de fuera, no se abre un hueco).
 
 // ==========================================================
 // 1. TEXTOS Y ESTADO DEL REPORTE
@@ -51,6 +55,14 @@ let originalTitle = document.title;
 function formatReportDate(isoDate) {
     const date = isoDate ? new Date(isoDate + 'T00:00:00') : new Date();
     return date.toLocaleDateString('en-US');
+}
+
+// Fecha de HOY en horario local (AAAA-MM-DD), para el nombre del PDF.
+// toISOString() usa horario UTC y, de noche, mostraría el día siguiente.
+function reportTodayStamp() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function collectReportData() {
@@ -101,7 +113,6 @@ function buildHeaderLine(label, value) {
 
 // Encabezado con título, datos de la auditoría y alcance
 function buildHeader(data) {
-    const reportId = Math.random().toString(36).slice(2, 11).toUpperCase();
     return `
         <header class="flex justify-between items-start border-b-8 border-zinc-900 pb-10 mb-12">
             <div>
@@ -109,10 +120,9 @@ function buildHeader(data) {
                 <p class="text-xl font-bold text-zinc-500 uppercase tracking-[0.2em] mt-2">NIST CSF Audit Assessment</p>
             </div>
             <div class="text-right font-bold text-zinc-400 text-[10px] uppercase space-y-1 max-w-xs">
-                <p>Report ID: ${reportId}</p>
                 ${buildHeaderLine('Audited Area', data.meta.auditee)}
                 ${buildHeaderLine('Auditor', data.meta.auditor)}
-                <p>Audit Date: ${data.meta.date}</p>
+                <p>Audit Date: ${escapeHtml(data.meta.date)}</p>
                 <p>Scope: ${data.globalStats.scope} of ${data.allItems.length} controls</p>
                 <p class="text-zinc-900">Status: Internal Working Paper</p>
             </div>
@@ -191,10 +201,10 @@ function buildControlRow(item) {
             <div class="flex flex-col md:flex-row justify-between gap-6">
                 <div class="flex-1">
                     <div class="flex items-center gap-3 mb-2">
-                        <span class="font-black text-[10px] text-zinc-400">${item.code}</span>
-                        <span class="status-tag ${tag.css}">${tag.label}</span>
+                        <span class="font-black text-[10px] text-zinc-400">${escapeHtml(item.code)}</span>
+                        <span class="status-tag ${escapeHtml(tag.css)}">${escapeHtml(tag.label)}</span>
                     </div>
-                    <p class="text-sm font-bold text-zinc-800 leading-snug">${item.text}</p>
+                    <p class="text-sm font-bold text-zinc-800 leading-snug">${escapeHtml(item.text)}</p>
                 </div>
                 <div class="md:w-1/3 ${note ? 'bg-zinc-100/50 p-4 border-l-2 border-zinc-300' : 'border-2 border-dashed border-zinc-100'} rounded-xl flex flex-col justify-center">
                     ${note ? `
@@ -215,9 +225,9 @@ function buildCompactRow(item) {
     return `
         <div class="p-4 bg-white rounded-2xl border border-zinc-200">
             <div class="flex items-center gap-3">
-                <span class="font-black text-[10px] text-zinc-400">${item.code}</span>
+                <span class="font-black text-[10px] text-zinc-400">${escapeHtml(item.code)}</span>
                 <div class="flex-1">
-                    <p class="text-sm font-bold text-zinc-800 leading-snug">${item.text}</p>
+                    <p class="text-sm font-bold text-zinc-800 leading-snug">${escapeHtml(item.text)}</p>
                     ${note ? `<p class="text-[11px] italic text-zinc-600 leading-relaxed">Note: "${escapeHtml(note)}"</p>` : ''}
                 </div>
             </div>
@@ -234,8 +244,8 @@ function buildStatusGroup(group, items) {
         <div class="mb-12">
             <div class="flex justify-between items-end mb-6 border-l-4 border-zinc-900 pl-4">
                 <div>
-                    <h3 class="text-2xl font-black uppercase tracking-tighter">${tag.label}</h3>
-                    <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">${group.hint}</p>
+                    <h3 class="text-2xl font-black uppercase tracking-tighter">${escapeHtml(tag.label)}</h3>
+                    <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">${escapeHtml(group.hint)}</p>
                 </div>
                 <div class="text-right">
                     <span class="text-2xl font-black text-zinc-900">${items.length}</span>
@@ -269,7 +279,7 @@ function buildDetailSection(data) {
             ${groupsHtml}
             ${outItems.length ? `
             <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4 italic">
-                Out of scope (${outItems.length}): ${outItems.map(i => i.code).join(', ')}
+                Out of scope (${outItems.length}): ${outItems.map(i => escapeHtml(i.code)).join(', ')}
             </p>` : ''}
         </section>`;
 }
@@ -406,7 +416,7 @@ function closeReport() {
 // sugerido del archivo, y se restaura al terminar.
 function printReport() {
     originalTitle = document.title;
-    document.title = `NIST-Sentinel_Audit_Report_${new Date().toISOString().split('T')[0]}`;
+    document.title = `NIST-Sentinel_Audit_Report_${reportTodayStamp()}`;
     window.addEventListener('afterprint', () => { document.title = originalTitle; }, { once: true });
     window.print();
 }
