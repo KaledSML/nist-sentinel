@@ -23,11 +23,12 @@
 
 ## 💡 Why I built it
 
-**Short version:** spreadsheets are a pain to audit with. 📊
+**Short version:** Auditing with spreadsheets is a complete pain. 📊
 
-**Long version:** I did my internship auditing under **NERC CIP**, saw how hard it was to follow progress in a spreadsheet, and decided to build something better with **NIST CSF**, the framework the industry asks for everywhere. I'm a pythonist 🐍, so vanilla JavaScript was my "close enough" language.
+**​Long version:** I did my internship auditing under NERC CIP and saw firsthand how painful it was to track progress using spreadsheets. So, I decided to build something better aligned with NIST CSF—the framework the industry keeps asking for everywhere.
+​Since I'm a Pythonist 🐍 at heart , plain JavaScript was my "close enough to get it done" language. What started as "just a simple weekend checklist" quickly escalated: it looked messy, so I turned it into a Kanban board. Then I kept adding features... and, well, one thing led to another.
 
-> 🐯 **Author's note:** First this started as "just a checklist" .  It looked messy, so I made it a Kanban board. Then I kept adding things. This was supposed to be a weekend project!! AND NOW I have a CSP, a validation layer and no idea how this happened. 🙈 I'm not sorry. It was fun, and I learned a lot along the way.
+>**​🐯 Author's note:** This was supposed to be a weekend project!! AND NOW I have a CSP, a validation layer, and absolutely no idea how we got here. 🙈 I'm not sorry, though—it was a ton of fun and I learned a lot along the way!
 
 ---
 
