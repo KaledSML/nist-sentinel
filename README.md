@@ -23,13 +23,13 @@
 
 ## 💡 Why I built it
 
-During my internship I worked on an audit under **NERC CIP** at an electric utility, and I kept seeing the same thing: framework-based audits living in spreadsheets. Hard to see progress at a glance, hard to share, and very easy to lose context.
+Short version: spreadsheets are a pain to audit with. 📊
 
-I wanted to learn **NIST CSF**, since it's one of the frameworks the industry asks for everywhere, so I turned it into a tool. I'm a Python person at heart, so I picked vanilla JavaScript as the closest thing I could enjoy, typed every control into `data.js`, and made a checklist.
+Long version: I did my internship auditing under **NERC CIP**, saw how hard it was to follow progress in a spreadsheet, and decided to build something better with **NIST CSF**, the framework the industry asks for everywhere. I'm a Python person, so vanilla JavaScript was my "close enough" language.
 
-The checklist looked messy, so I turned it into a board. Then I kept adding things. Then a few more.
+First it was a checklist. Then a board. Then it got out of hand. 🐯
 
-> 🐯 **Author's note:** this started as "just a checklist" and got completely out of hand. I'm not sorry. It was fun, and I learned a lot along the way.
+> 🐯 **Author's note:** First this started as "just a checklist" . Then a Kanban board. Then it got out of hand.and got completely out of hand. I'm not sorry. It was fun, and I learned a lot along the way.
 
 ---
 
