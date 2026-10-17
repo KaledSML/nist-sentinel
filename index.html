@@ -6,89 +6,38 @@
     <title>NIST SENTINEL | Cybersecurity Auditor</title>
     <meta name="theme-color" content="#18181b">
 
-    <!-- POLÍTICA DE SEGURIDAD (CSP) - ACTIVA
-         Bloquea cualquier script que no venga de tus propios archivos.
+    <!-- POLÍTICA DE SEGURIDAD (CSP) - ACTIVA Y ESTRICTA
+         Todo lo que no se permite explícitamente queda prohibido (default-src 'none'):
+           - script-src 'self'  : solo scripts de tus propios archivos (sin código en línea).
+           - style-src 'self'   : solo hojas de estilo de tus propios archivos
+                                  (sin <style> ni style="..." en el HTML).
+           - img-src            : imágenes propias y data:.
+           - connect-src 'none' : la página no puede enviar datos a ningún sitio.
          Si algún día algo deja de funcionar, abre F12 → Console:
          los bloqueos de la CSP aparecen ahí en rojo. -->
-
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
-          
+          content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+
     <!-- TODO LOCAL: nada se carga desde internet.
          tailwind.css se genera con el comando explicado en LEEME-BUILD.txt
          (la configuración vive en tailwind.config.js). -->
     <link rel="stylesheet" href="tailwind.css">
-    <!-- NUEVO 5a: estilos propios del reporte (colores de estados, resumen, etc.) -->
+    <!-- Estilos propios del reporte (colores de estados, resumen, etc.) -->
     <link rel="stylesheet" href="report.css">
+    <!-- Estilos propios de la interfaz (antes eran un <style> aquí dentro) -->
+    <link rel="stylesheet" href="custom.css">
     <script src="vendor/Sortable.min.js"></script>
-    <!-- NUEVO 5a: Chart.js ahora se carga aquí, porque el reporte vive en esta página -->
+    <!-- Chart.js: lo usa el reporte, que vive en esta página -->
     <script src="vendor/chart.umd.min.js"></script>
-    <!-- NUEVO 5c: ExcelJS (genera el archivo Excel sin internet) -->
+    <!-- ExcelJS: genera el archivo Excel sin internet -->
     <script src="vendor/exceljs.min.js"></script>
-
-    <style>
-        /* 1. Fuentes y general */
-        /* Fuente del sistema: cero descargas, se ve nativa en cada dispositivo */
-        body { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-
-        /* 2. Personalización de la interfaz */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-
-        .kanban-glass {
-            background: rgba(244, 244, 245, 0.5);
-            backdrop-filter: blur(8px);
-        }
-        .dark .kanban-glass { background: rgba(24, 24, 27, 0.5); }
-
-        .nist-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .nist-card:hover { transform: translateY(-4px); }
-
-        /* 3. NUEVO 5a: alternar entre tablero y reporte.
-              app.js añade la clase "report-open" al <body> cuando se abre el reporte. */
-        #report-view { display: none; background: #f4f4f5; color: #18181b; min-height: 100vh; }
-        body.report-open #report-view { display: block; }
-        body.report-open > nav,
-        body.report-open > main,
-        body.report-open > footer,
-        body.report-open > #modal,
-        body.report-open > #meta-modal { display: none !important; }
-
-        /* 4. Configuración para impresión (oculta botones y barra) */
-        @media print {
-            nav, button, .no-print { display: none !important; }
-            body { background: white !important; color: black !important; padding: 0; }
-
-            main {
-                display: flex !important;
-                flex-direction: row !important;
-                gap: 10px !important;
-                max-width: 100% !important;
-                padding: 0 !important;
-            }
-            .kanban-col { width: 33.33% !important; min-height: auto !important; }
-            .kanban-glass {
-                background: white !important;
-                border: 1px solid #e4e4e7 !important;
-                backdrop-filter: none !important;
-            }
-            .nist-card { border: 1px solid #eee !important; break-inside: avoid; }
-
-            /* NUEVO 5a: si el reporte está abierto, al imprimir NO sale el tablero.
-               Va después de las reglas de arriba y con más especificidad para ganarles. */
-            body.report-open > main,
-            body.report-open > footer,
-            body.report-open > #modal,
-            body.report-open > #meta-modal { display: none !important; }
-            #report-view { background: white !important; min-height: 0; }
-        }
-    </style>
 </head>
 
 <body class="bg-zinc-100 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 transition-colors duration-500 min-h-screen flex flex-col">
 
     <!-- NOTA: ningún botón lleva código dentro. Cada uno tiene data-action="nombre"
-         y la tabla de la sección 8 de app.js decide qué función se ejecuta. -->
+         y la tabla de la sección 8 de app.js decide qué función se ejecuta.
+         Tampoco hay style="..." en ningún elemento: los estilos viven en los .css. -->
 
     <!-- ============ BARRA SUPERIOR ============ -->
     <nav class="sticky top-0 z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 p-4">
@@ -103,12 +52,12 @@
 
                 <div class="h-10 w-px bg-zinc-200 dark:bg-zinc-800 mx-2"></div>
 
-                <!-- NUEVO 5b: abre la ventanita "Audit Details" (área auditada, auditor, fecha) -->
+                <!-- Abre la ventanita "Audit Details" (área auditada, auditor, fecha) -->
                 <button data-action="open-meta" class="flex items-center gap-3 px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm hover:border-blue-500 font-black text-[10px] uppercase tracking-widest transition-all active:scale-95">
                     📝 Audit Details
                 </button>
 
-                <!-- NUEVO 5c: descarga el checklist en Excel (la acción 'export-excel' se conecta en app.js) -->
+                <!-- Descarga el checklist en Excel (la acción 'export-excel' se conecta en app.js) -->
                 <button data-action="export-excel" class="flex items-center gap-3 px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm hover:border-blue-500 font-black text-[10px] uppercase tracking-widest transition-all active:scale-95">
                     📊 Download Excel
                 </button>
@@ -119,14 +68,14 @@
                 </button>
             </div>
 
-            <!-- Progreso global -->
+            <!-- Progreso global (el ancho de la barra lo asigna app.js por JavaScript) -->
             <div class="flex-1 max-w-md w-full px-4">
                 <div class="flex justify-between items-end mb-2">
                     <span class="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">NIST Compliance Progress</span>
                     <span id="total-percent" class="text-sm font-black text-blue-600 dark:text-blue-400">0%</span>
                 </div>
                 <div class="w-full bg-zinc-200 dark:bg-zinc-800 h-3 rounded-full overflow-hidden shadow-inner">
-                    <div id="main-progress-bar" class="bg-blue-600 h-full transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(59,130,246,0.5)]" style="width: 0%"></div>
+                    <div id="main-progress-bar" class="bg-blue-600 h-full transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
                 </div>
             </div>
 
@@ -162,8 +111,8 @@
         </div>
     </main>
 
-    <!-- ============ NUEVO 5a: VISTA DEL REPORTE ============
-         Está oculta por defecto. Al pulsar "Export Report", app.js añade la clase
+    <!-- ============ VISTA DEL REPORTE ============
+         Está oculta por defecto. Al pulsar "Export Report", report.js añade la clase
          "report-open" al <body>: se esconde el tablero y aparece esto.
          report.js escribe el reporte dentro de #report-content. -->
     <div id="report-view">
@@ -199,15 +148,15 @@
             <div id="modal-content" class="p-4 sm:p-10 space-y-8 max-h-[55vh] overflow-y-auto custom-scrollbar"></div>
 
             <div class="p-5 sm:p-10 bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-center gap-4">
-                <p class="text-[9px] font-black text-zinc-400 uppercase italic">Changes saved to local buffer</p>
+                <p class="text-[9px] font-black text-zinc-400 uppercase italic">Saved automatically on this device</p>
                 <button data-action="close-modal" class="bg-zinc-900 dark:bg-blue-600 text-white px-8 sm:px-12 py-4 sm:py-5 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all hover:shadow-2xl active:scale-95 shadow-xl">
-                    Finalize &amp; Sync
+                    Done
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- ============ NUEVO 5b: VENTANA "AUDIT DETAILS" ============
+    <!-- ============ VENTANA "AUDIT DETAILS" ============
          Tres campos, todos opcionales. app.js los rellena al abrir (openMeta)
          y los guarda mientras se escribe (saveMeta). Cada campo lleva:
            data-action="save-meta"  -> qué hacer
@@ -293,7 +242,7 @@
     <!-- ============ SCRIPTS PROPIOS (el orden importa) ============ -->
     <script src="data.js"></script>   <!-- 1º: la lista de controles NIST -->
     <script src="report.js"></script> <!-- 2º: el generador del reporte -->
-    <script src="excel.js"></script>  <!-- 3º: NUEVO 5c, el generador del Excel (lee los mismos datos que el reporte) -->
+    <script src="excel.js"></script>  <!-- 3º: el generador del Excel (lee los mismos datos que el reporte) -->
     <script src="app.js"></script>    <!-- 4º: la lógica, usa lo anterior -->
 </body>
 </html>
