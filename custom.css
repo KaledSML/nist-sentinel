@@ -1,0 +1,69 @@
+/* =========================================================
+   Estilos propios de NIST Sentinel
+   (antes vivían dentro de un <style> en index.html)
+
+   Están en un archivo aparte para que la CSP pueda prohibir los estilos
+   en línea (style-src 'self'). Si algún día necesitas un estilo nuevo,
+   agrégalo aquí o usa clases de Tailwind; nunca style="..." en el HTML.
+   Se carga DESPUÉS de tailwind.css y report.css, así que gana si hay choque.
+   ========================================================= */
+
+/* 1. Fuentes y general */
+/* Fuente del sistema: cero descargas, se ve nativa en cada dispositivo */
+body { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+
+/* 2. Personalización de la interfaz */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+
+.kanban-glass {
+    background: rgba(244, 244, 245, 0.5);
+    backdrop-filter: blur(8px);
+}
+.dark .kanban-glass { background: rgba(24, 24, 27, 0.5); }
+
+.nist-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.nist-card:hover { transform: translateY(-4px); }
+
+/* Barra de progreso global: arranca en 0. El ancho real lo asigna app.js por
+   JavaScript (updateGlobalProgress), que gana sobre esta regla. */
+#main-progress-bar { width: 0; }
+
+/* 3. Alternar entre tablero y reporte.
+      report.js añade la clase "report-open" al <body> cuando se abre el reporte. */
+#report-view { display: none; background: #f4f4f5; color: #18181b; min-height: 100vh; }
+body.report-open #report-view { display: block; }
+body.report-open > nav,
+body.report-open > main,
+body.report-open > footer,
+body.report-open > #modal,
+body.report-open > #meta-modal { display: none !important; }
+
+/* 4. Configuración para impresión (oculta botones y barra) */
+@media print {
+    nav, button, .no-print { display: none !important; }
+    body { background: white !important; color: black !important; padding: 0; }
+
+    main {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 10px !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+    .kanban-col { width: 33.33% !important; min-height: auto !important; }
+    .kanban-glass {
+        background: white !important;
+        border: 1px solid #e4e4e7 !important;
+        backdrop-filter: none !important;
+    }
+    .nist-card { border: 1px solid #eee !important; break-inside: avoid; }
+
+    /* Si el reporte está abierto, al imprimir NO sale el tablero.
+       Va después de las reglas de arriba y con más especificidad para ganarles. */
+    body.report-open > main,
+    body.report-open > footer,
+    body.report-open > #modal,
+    body.report-open > #meta-modal { display: none !important; }
+    #report-view { background: white !important; min-height: 0; }
+}
