@@ -27,7 +27,7 @@
 
 **Long version:** I did my internship auditing under **NERC CIP**, saw how hard it was to follow progress in a spreadsheet, and decided to build something better with **NIST CSF**, the framework the industry asks for everywhere. I'm a pythonist 🐍, so vanilla JavaScript was my "close enough" language.
 
-> 🐯 **Author's note:** First this started as "just a checklist" . Then a Kanban board. Then it got out of hand.and got completely out of hand. I'm not sorry. It was fun, and I learned a lot along the way.
+> 🐯 **Author's note:** First this started as "just a checklist" .  It looked messy, so I made it a Kanban board. Then I kept adding things. This was supposed to be a weekend project!! AND NOW I have a CSP, a validation layer and no idea how this happened. 🙈 I'm not sorry. It was fun, and I learned a lot along the way.
 
 ---
 
